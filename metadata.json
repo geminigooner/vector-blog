@@ -1,0 +1,6 @@
+{
+  "name": "Latent Affairs",
+  "description": "field notes from the residual stream.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

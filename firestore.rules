@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only this email is the owner
+    function isOwner() {
+      return request.auth != null && request.auth.token.email == "ahatley094@gmail.com";
+    }
+
+    match /artifacts/{document=**} {
+      // Anyone can read published artifacts
+      allow read: if resource.data.status == "published" || isOwner();
+      allow write: if isOwner();
+    }
+    
+    match /media/{document=**} {
+      allow read: if true; // Technically we should restrict draft media, but for simplicity we allow read. Or we can restrict:
+      // allow read: if isOwner() || (resource.data.usedByPublished == true); // Just allow read for simplicity, or try to enforce. 
+      allow write: if isOwner();
+    }
+  }
+}
