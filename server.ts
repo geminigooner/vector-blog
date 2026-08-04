@@ -1,35 +1,19 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { initEmbeddings, getArtifacts } from "./server/embeddings";
+import { semanticRouter } from "./server/semantic-api";
 
 async function startServer() {
   const app = express();
+  
+  app.use(express.json({ limit: "1mb" }));
+  app.use("/api", semanticRouter);
+  
   const PORT = 3000;
-
-  // Initialize embeddings cache on startup
-  console.log("Initializing embeddings...");
-  try {
-    await initEmbeddings();
-    console.log("Embeddings initialized successfully.");
-  } catch (err) {
-    console.error("Failed to initialize embeddings on startup:", err);
-  }
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
-  });
-
-  app.get("/api/artifacts", async (req, res) => {
-    try {
-      const q = req.query.q as string | undefined;
-      const results = await getArtifacts(q);
-      res.json({ artifacts: results });
-    } catch (err: any) {
-      console.error("Failed to get artifacts:", err);
-      res.status(500).json({ error: err.message });
-    }
   });
 
   // Vite middleware for development

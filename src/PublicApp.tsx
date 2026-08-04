@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Search, Orbit, Columns3, PanelRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ViewMode, LayoutMode, Artifact, SearchVector } from './types';
-import { mockArtifacts } from './data/artifacts';
-import { getPublishedArtifacts } from './lib/data';
+import { getPublishedArtifacts, getStudioArtifacts } from './lib/data';
+import { buildAtlas, semanticSearch, Projection, Vec } from './lib/semantic';
+import { loadVectors, embedQuery } from './lib/vectors';
 import { FieldView } from './components/FieldView';
 import { RackView } from './components/RackView';
 import { ArtifactDrawer } from './components/ArtifactDrawer';
@@ -40,12 +41,27 @@ export function PublicApp() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [queryVector, setQueryVector] = useState<SearchVector | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [projection, setProjection] = useState<Projection | null>(null);
+  const [vectors, setVectors] = useState<Record<string, Vec>>({});
 
   useEffect(() => {
-    getPublishedArtifacts().then((data) => {
-      setBaseArtifacts(data);
-      setArtifacts(data);
-    });
+    Promise.all([getPublishedArtifacts(), loadVectors(), getStudioArtifacts()])
+      .then(([posts, vecs, raw]) => {
+        // topics/keywords drive AUTHOR space; embeddings drive MACHINE space
+        const tagsById: Record<string, string[]> = {};
+        const categoryById: Record<string, string> = {};
+        for (const r of raw) {
+          tagsById[r.id] = [...((r as any).topics || []), ...((r as any).keywords || [])];
+          categoryById[r.id] = r.authorCategory || r.authorIntent || 'Unsorted';
+        }
+
+        const { artifacts: laid, projection: proj } = buildAtlas(posts, vecs, tagsById, categoryById);
+
+        setVectors(vecs);
+        setProjection(proj);
+        setBaseArtifacts(laid as any);
+        setArtifacts(laid as any);
+      });
   }, []);
 
   useEffect(() => {
@@ -56,10 +72,31 @@ export function PublicApp() {
   }, [searchQuery]);
 
   useEffect(() => {
-    const { results, queryVector: qv } = deterministicSearch(baseArtifacts, debouncedQuery);
-    setArtifacts(results);
-    setQueryVector(qv);
-  }, [debouncedQuery, baseArtifacts]);
+    let cancelled = false;
+
+    if (!debouncedQuery) {
+      setArtifacts(baseArtifacts.map((a) => ({ ...a, searchRelevance: 1 })));
+      setQueryVector(null);
+      return;
+    }
+
+    embedQuery(debouncedQuery).then((qvec) => {
+      if (cancelled) return;
+      if (!qvec) {
+        // Server unreachable - fall back to substring matching so search still does *something*.
+        const { results, queryVector: qv } = deterministicSearch(baseArtifacts, debouncedQuery);
+        setArtifacts(results);
+        setQueryVector(qv);
+        return;
+      }
+      
+      const { results, location } = semanticSearch(baseArtifacts, vectors, qvec, projection);
+      setArtifacts(results);
+      setQueryVector({ query: debouncedQuery, location: location || { x: 0, y: 0 }, isActive: true });
+    });
+
+    return () => { cancelled = true; };
+  }, [debouncedQuery, baseArtifacts, vectors, projection]);
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-carbon flex flex-col font-sans text-ivory">

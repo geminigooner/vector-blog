@@ -7,6 +7,7 @@ import { FirebaseArtifact, ContentType } from '../types';
 import { generateCoordinate } from '../lib/data';
 import { Save, Eye, EyeOff, UploadCloud, ChevronLeft, Trash } from 'lucide-react';
 import Markdown from 'react-markdown';
+import { embedArtifact } from '../lib/vectors';
 
 const DEFAULT_TRACE = {
   artifactID: '',
@@ -103,6 +104,12 @@ export function Editor() {
     setArtifact(finalArt);
     setSaving(false);
     
+    if (status === 'published') {
+      embedArtifact(finalArt).then((ok) => {
+        if (!ok) console.warn('Post published but not embedded yet.');
+      });
+    }
+
     if (!id) {
       navigate(`/studio/editor/${finalArt.id}`, { replace: true });
     }
