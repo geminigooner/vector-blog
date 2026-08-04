@@ -39,10 +39,10 @@ function getAi() {
 }
 
 async function getEmbedding(text: string) {
-  const response = await getAi().models.embedContent({
-    model: 'text-embedding-004',
-    contents: text,
-  });
+    const response = await getAi().models.embedContent({
+      model: 'gemini-embedding-2-preview',
+      contents: text,
+    });
   return response.embeddings?.[0]?.values || [];
 }
 
@@ -54,8 +54,7 @@ semanticRouter.post('/embed', async (req, res) => {
     const textToEmbed = `${artifact.title}\n\nType: ${artifact.type}\nIntent: ${artifact.authorIntent}\n\n${artifact.bodyMarkdown}`;
     const vec = await getEmbedding(textToEmbed);
     
-    await db.collection('embeddings').doc(artifact.id).set({ values: vec });
-    res.json({ success: true });
+    res.json({ values: vec });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

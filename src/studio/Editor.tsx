@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { FirebaseArtifact, ContentType } from '../types';
-import { generateCoordinate } from '../lib/data';
+import { generateCoordinate, deleteArtifact } from '../lib/data';
 import { Save, Eye, EyeOff, UploadCloud, ChevronLeft, Trash } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { embedArtifact } from '../lib/vectors';
@@ -44,6 +44,8 @@ export function Editor() {
   const [loading, setLoading] = useState(id !== undefined);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -69,17 +71,32 @@ export function Editor() {
     }));
   };
 
+  const handleDelete = async () => {
+    if (!artifact.id || !window.confirm('Are you sure you want to delete this artifact? This cannot be undone.')) return;
+    setSaving(true);
+    try {
+      await deleteArtifact(artifact.id);
+      navigate('/studio');
+    } catch (err) {
+      console.error(err);
+      setSaveStatus('error');
+      setSaveMessage('Failed to delete');
+      setSaving(false);
+    }
+  };
+
   const handleSave = async (status: 'draft' | 'published') => {
     if (!user) return;
     setSaving(true);
+    setSaveStatus('saving');
     
     // Auto-generate slug and coordinates if missing
     let finalSlug = artifact.slug || artifact.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     let machineCoord = artifact.machineCoordinate || generateCoordinate(finalSlug || artifact.id!);
     let authorCoord = artifact.authorCoordinate || generateCoordinate((artifact.authorCategory || '') + (artifact.authorIntent || ''));
 
-    const finalArt: FirebaseArtifact = {
-      ...(artifact as FirebaseArtifact),
+    const baseArt = {
+      ...artifact,
       slug: finalSlug || artifact.id!,
       status,
       machineCoordinate: machineCoord,
@@ -93,25 +110,44 @@ export function Editor() {
       ownerUid: user.uid,
     };
     
-    if (status === 'published' && !finalArt.publishedAt) {
-      finalArt.publishedAt = Date.now();
+    if (status === 'published' && !baseArt.publishedAt) {
+      baseArt.publishedAt = Date.now();
     }
-    if (!finalArt.createdAt) {
-      finalArt.createdAt = Date.now();
-    }
-    
-    await setDoc(doc(db, 'artifacts', finalArt.id), finalArt);
-    setArtifact(finalArt);
-    setSaving(false);
-    
-    if (status === 'published') {
-      embedArtifact(finalArt).then((ok) => {
-        if (!ok) console.warn('Post published but not embedded yet.');
-      });
+    if (!baseArt.createdAt) {
+      baseArt.createdAt = Date.now();
     }
 
-    if (!id) {
-      navigate(`/studio/editor/${finalArt.id}`, { replace: true });
+    // Firestore rejects undefined values, we must strip them deeply
+    const finalArt = JSON.parse(JSON.stringify(baseArt)) as FirebaseArtifact;
+    
+    try {
+      await setDoc(doc(db, 'artifacts', finalArt.id), finalArt);
+      setArtifact(finalArt);
+      
+      if (status === 'published') {
+        const ok = await embedArtifact(finalArt);
+        if (ok) {
+          setSaveStatus('success');
+          setSaveMessage('Published & embedded successfully');
+        } else {
+          setSaveStatus('error');
+          setSaveMessage('Published but embedding failed');
+        }
+      } else {
+        setSaveStatus('success');
+        setSaveMessage('Draft saved successfully');
+      }
+
+      if (!id) {
+        navigate(`/studio/editor/${finalArt.id}`, { replace: true });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setSaveStatus('error');
+      setSaveMessage('Failed to save artifact');
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveStatus('idle'), 4000);
     }
   };
 
@@ -122,13 +158,21 @@ export function Editor() {
       {/* Editor Header */}
       <div className="flex-none bg-carbon border-b border-silver/10 p-4 flex justify-between items-center sticky top-0 z-10">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/studio')} className="text-silver hover:text-ivory">
-            <ChevronLeft className="w-5 h-5" />
+          <button onClick={() => navigate('/studio')} className="flex items-center gap-1 text-silver hover:text-ivory bg-silver/5 px-2 py-1 rounded-sm border border-silver/10 transition-colors">
+            <ChevronLeft className="w-4 h-4" />
+            <span className="font-mono text-[9px] uppercase tracking-widest">Back</span>
           </button>
           <span className="font-mono text-[10px] uppercase tracking-widest text-silver">
             {artifact.status === 'published' ? 'Editing Published' : 'Draft'}
           </span>
         </div>
+        
+        {saveStatus !== 'idle' && (
+          <div className={`absolute left-1/2 -translate-x-1/2 font-mono text-[10px] uppercase tracking-widest px-4 py-1 flex items-center transition-opacity ${saveStatus === 'success' ? 'text-indicator-green bg-indicator-green/10' : saveStatus === 'error' ? 'text-rose bg-rose/10' : 'text-silver bg-silver/10'}`}>
+            {saveStatus === 'saving' ? 'SAVING...' : saveMessage}
+          </div>
+        )}
+
         <div className="flex gap-2">
           <button 
             onClick={() => setPreview(!preview)}
@@ -136,6 +180,16 @@ export function Editor() {
           >
             {preview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
+          {artifact.id && id !== 'new' && (
+            <button
+              onClick={handleDelete}
+              disabled={saving}
+              className="p-2 text-silver hover:text-rose border border-transparent hover:border-rose/20 transition-colors"
+              title="Delete Artifact"
+            >
+              <Trash className="w-4 h-4" />
+            </button>
+          )}
           <button 
             onClick={() => handleSave('draft')}
             disabled={saving}

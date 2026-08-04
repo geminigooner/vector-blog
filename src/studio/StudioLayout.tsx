@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, PenTool, Image as ImageIcon } from 'lucide-react';
+import { LogOut, Home, PenTool, Image as ImageIcon, ExternalLink } from 'lucide-react';
 
 export function StudioLayout({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuth();
@@ -42,6 +42,16 @@ export function StudioLayout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          
+          <div className="pt-4 mt-4 border-t border-silver/10">
+            <a
+              href="/"
+              className="flex items-center gap-3 px-3 py-2 text-xs font-mono uppercase tracking-widest text-silver hover:text-ivory hover:bg-silver/5 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              View Site
+            </a>
+          </div>
         </nav>
         
         <div className="p-4 border-t border-silver/10">

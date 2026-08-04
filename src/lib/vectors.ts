@@ -1,4 +1,4 @@
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 export async function embedArtifact(artifact: any): Promise<boolean> {
@@ -8,7 +8,13 @@ export async function embedArtifact(artifact: any): Promise<boolean> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ artifact })
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data.values && data.values.length > 0) {
+      await setDoc(doc(db, 'embeddings', artifact.id), { values: data.values });
+      return true;
+    }
+    return false;
   } catch (err) {
     console.error(err);
     return false;

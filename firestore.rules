@@ -23,9 +23,7 @@ service cloud.firestore {
       // Public read: the atlas needs vectors to lay itself out.
       // Vectors are not reversible into your drafts.
       allow read: if true;
-      // Only the server (admin SDK) writes here. Admin bypasses rules,
-      // so denying all client writes is correct, not a mistake.
-      allow write: if false;
+      allow write: if isOwner();
     }
   }
 }

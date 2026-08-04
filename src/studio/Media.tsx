@@ -134,7 +134,7 @@ export function Media() {
             <div key={m.id} className="bg-carbon border border-silver/10 flex flex-col group">
               <div className="aspect-square bg-graphite relative overflow-hidden">
                 <img src={m.downloadUrl} alt={m.altText} className="w-full h-full object-cover" />
-                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-2 right-2 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button onClick={() => copyToClipboard(m.downloadUrl)} className="p-1.5 bg-carbon text-silver hover:text-ivory border border-silver/20" title="Copy Markdown">
                     <Copy className="w-4 h-4" />
                   </button>
