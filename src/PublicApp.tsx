@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Orbit, Columns3, PanelRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ViewMode, LayoutMode, Artifact, SearchVector } from './types';
-import { getPublishedArtifacts, getStudioArtifacts } from './lib/data';
+import { getPublishedArtifacts, getPublishedFirebaseArtifacts } from './lib/data';
 import { buildAtlas, semanticSearch, Projection, Vec } from './lib/semantic';
 import { loadVectors, embedQuery } from './lib/vectors';
 import { FieldView } from './components/FieldView';
@@ -45,7 +45,7 @@ export function PublicApp() {
   const [vectors, setVectors] = useState<Record<string, Vec>>({});
 
   useEffect(() => {
-    Promise.all([getPublishedArtifacts(), loadVectors(), getStudioArtifacts()])
+    Promise.all([getPublishedArtifacts(), loadVectors(), getPublishedFirebaseArtifacts()])
       .then(([posts, vecs, raw]) => {
         // topics/keywords drive AUTHOR space; embeddings drive MACHINE space
         const tagsById: Record<string, string[]> = {};

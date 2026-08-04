@@ -291,7 +291,7 @@ export function Editor() {
             <div className="markdown-body">
               <h1 className="text-4xl md:text-5xl font-serif text-ivory mb-4">{artifact.title}</h1>
               {artifact.subtitle && <h2 className="text-xl md:text-2xl font-serif text-silver italic mb-8">{artifact.subtitle}</h2>}
-              <Markdown>{artifact.bodyMarkdown || ''}</Markdown>
+              <Markdown urlTransform={(url) => url}>{artifact.bodyMarkdown || ''}</Markdown>
             </div>
           ) : (
             <div className="space-y-6">

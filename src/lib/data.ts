@@ -41,6 +41,24 @@ export async function getPublishedArtifacts(): Promise<Artifact[]> {
   }
 }
 
+export async function getPublishedFirebaseArtifacts(): Promise<FirebaseArtifact[]> {
+  try {
+    const q = query(
+      collection(db, 'artifacts'),
+      where('status', '==', 'published')
+    );
+    const snap = await getDocs(q);
+    const results: FirebaseArtifact[] = [];
+    snap.forEach((doc) => {
+      results.push(doc.data() as FirebaseArtifact);
+    });
+    return results;
+  } catch (err) {
+    console.error("Failed to load artifacts", err);
+    return [];
+  }
+}
+
 export async function getStudioArtifacts(): Promise<FirebaseArtifact[]> {
   try {
     const q = query(collection(db, 'artifacts')); // sorted by client since missing index possibly

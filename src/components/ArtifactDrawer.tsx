@@ -68,7 +68,7 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
 
                 <div className="mt-12 text-lg">
                   <div className="markdown-body">
-                    <Markdown>{artifact.markdownBody}</Markdown>
+                    <Markdown urlTransform={(url) => url}>{artifact.markdownBody}</Markdown>
                   </div>
                 </div>
               </div>
