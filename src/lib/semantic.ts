@@ -75,7 +75,21 @@ export function fitProjection(vectors: Vec[]): Projection | null {
     if (norm > 0) v2 = nextV.map(val => val / norm);
   }
   
-  return { mean, components: [v1, v2] };
+  let maxAbs = 0;
+  for (const x of centered) {
+    let dot1 = 0;
+    let dot2 = 0;
+    for (let i = 0; i < d; i++) {
+      dot1 += x[i] * v1[i];
+      dot2 += x[i] * v2[i];
+    }
+    if (Math.abs(dot1) > maxAbs) maxAbs = Math.abs(dot1);
+    if (Math.abs(dot2) > maxAbs) maxAbs = Math.abs(dot2);
+  }
+  
+  const scale = maxAbs > 0 ? 400 / maxAbs : 1;
+  
+  return { mean, components: [v1, v2], scale };
 }
 
 export function project(vec: Vec, projection: Projection) {
@@ -130,31 +144,10 @@ export function buildAtlas(
   const postVecs = posts.map(p => vecs[p.id]).filter(Boolean);
   const projection = fitProjection(postVecs);
   
-  let rawProjections: Record<string, {x: number, y: number}> = {};
-  let maxX = 0;
-  let maxY = 0;
-
-  if (projection) {
-    posts.forEach(post => {
-      if (vecs[post.id]) {
-        const raw = project(vecs[post.id], projection);
-        rawProjections[post.id] = raw;
-        if (Math.abs(raw.x) > maxX) maxX = Math.abs(raw.x);
-        if (Math.abs(raw.y) > maxY) maxY = Math.abs(raw.y);
-      }
-    });
-    
-    const maxAxis = Math.max(maxX, maxY, 0.0001);
-    projection.scale = 400 / maxAxis;
-  }
-
   const artifacts = posts.map(post => {
     let machineLocation = { x: 0, y: 0 };
-    if (rawProjections[post.id] && projection?.scale) {
-      machineLocation = {
-        x: rawProjections[post.id].x * projection.scale,
-        y: rawProjections[post.id].y * projection.scale,
-      };
+    if (projection && vecs[post.id]) {
+      machineLocation = project(vecs[post.id], projection);
     } else if (post.machineLocation) {
       machineLocation = post.machineLocation;
     }
