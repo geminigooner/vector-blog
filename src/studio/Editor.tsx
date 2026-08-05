@@ -51,8 +51,41 @@ export function Editor() {
     if (id) {
       getDoc(doc(db, 'artifacts', id)).then(snap => {
         if (snap.exists()) {
-          setArtifact(snap.data() as FirebaseArtifact);
+          const data = snap.data() as FirebaseArtifact;
+          
+          // Cleanup legacy base64 in bodyMarkdown
+          if (data.bodyMarkdown && data.bodyMarkdown.includes('data:')) {
+            let updatedBody = data.bodyMarkdown;
+            const inlineMedia = data.inlineMedia || [];
+            
+            // Extract all data URIs
+            const regex = /!\[(.*?)\]\((data:[^)]+)\)/g;
+            let match;
+            while ((match = regex.exec(data.bodyMarkdown)) !== null) {
+              const alt = match[1];
+              const dataUri = match[2];
+              
+              // Check if already in inlineMedia
+              let idx = inlineMedia.indexOf(dataUri);
+              if (idx === -1) {
+                idx = inlineMedia.length;
+                inlineMedia.push(dataUri);
+              }
+              
+              // Replace in body
+              const replacement = `![${alt}](inline:${idx})`;
+              updatedBody = updatedBody.replace(match[0], replacement);
+            }
+            
+            data.bodyMarkdown = updatedBody;
+            data.inlineMedia = inlineMedia;
+          }
+          
+          setArtifact(data);
         }
+        setLoading(false);
+      }).catch(err => {
+        console.error("Failed to load artifact", err);
         setLoading(false);
       });
     }
@@ -117,6 +150,30 @@ export function Editor() {
       baseArt.createdAt = Date.now();
     }
 
+    // Clean up base64 in body before saving to avoid large docs
+    let cleanedBody = baseArt.bodyMarkdown || '';
+    const inlineMedia = [...(baseArt.inlineMedia || [])];
+    
+    if (cleanedBody.includes('data:')) {
+      const regex = /!\[(.*?)\]\((data:[^)]+)\)/g;
+      let match;
+      while ((match = regex.exec(cleanedBody)) !== null) {
+        const alt = match[1];
+        const dataUri = match[2];
+        
+        let idx = inlineMedia.indexOf(dataUri);
+        if (idx === -1) {
+          idx = inlineMedia.length;
+          inlineMedia.push(dataUri);
+        }
+        
+        const replacement = `![${alt}](inline:${idx})`;
+        cleanedBody = cleanedBody.replace(match[0], replacement);
+      }
+    }
+    baseArt.bodyMarkdown = cleanedBody;
+    baseArt.inlineMedia = inlineMedia;
+
     // Firestore rejects undefined values, we must strip them deeply
     const finalArt = JSON.parse(JSON.stringify(baseArt)) as FirebaseArtifact;
     
@@ -133,7 +190,12 @@ export function Editor() {
           setSaveStatus('error');
           setSaveMessage('Published but embedding failed');
         }
-        const img = firstImageDataUrl(finalArt.bodyMarkdown) || finalArt.coverMedia;
+        let img = firstImageDataUrl(finalArt.bodyMarkdown) || finalArt.coverMedia;
+        if (!img && finalArt.inlineMedia) {
+          const firstImage = finalArt.inlineMedia.find((m: string) => m.startsWith('data:image/'));
+          if (firstImage) img = firstImage;
+        }
+        
         if (img) {
           embedVisual(finalArt.id, img).then((ok) => {
             if (!ok) console.warn('Published but not visually embedded.');
@@ -301,10 +363,15 @@ export function Editor() {
                       urlTransform={(url) => url}
                       components={{
                         img: ({node, src, alt, ...props}) => {
-                          if (src && src.startsWith('data:video/')) {
-                            return <video src={src} controls style={{ maxWidth: '100%' }} />
+                          let actualSrc = src;
+                          if (src?.startsWith('inline:')) {
+                            const idx = parseInt(src.split(':')[1]);
+                            actualSrc = artifact.inlineMedia?.[idx] || src;
                           }
-                          return <img src={src} alt={alt} {...props} />
+                          if (actualSrc && actualSrc.startsWith('data:video/')) {
+                            return <video src={actualSrc} controls preload="metadata" style={{ maxWidth: '100%' }} />
+                          }
+                          return <img src={actualSrc} alt={alt} {...props} />
                         }
                       }}
                     >
@@ -380,7 +447,8 @@ export function Editor() {
                                 setArtifact(prev => ({
                                   ...prev,
                                   coverMedia: frameBase64,
-                                  bodyMarkdown: (prev.bodyMarkdown || '') + `\n\n![video](${base64String})`
+                                  inlineMedia: [...(prev.inlineMedia || []), base64String],
+                                  bodyMarkdown: (prev.bodyMarkdown || '') + `\n\n![video](inline:${(prev.inlineMedia || []).length})`
                                 }));
                               };
                             };
@@ -412,7 +480,8 @@ export function Editor() {
                               
                               setArtifact(prev => ({
                                 ...prev,
-                                bodyMarkdown: (prev.bodyMarkdown || '') + `\n\n![image](${base64String})`
+                                inlineMedia: [...(prev.inlineMedia || []), base64String],
+                                bodyMarkdown: (prev.bodyMarkdown || '') + `\n\n![image](inline:${(prev.inlineMedia || []).length})`
                               }));
                             };
                           };

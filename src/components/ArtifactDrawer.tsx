@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronRight, Hash } from 'lucide-react';
+import { X, ChevronRight, Hash, Edit2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import Markdown from 'react-markdown';
 import { Artifact } from '../types';
 import { cn } from '../utils/cn';
@@ -11,6 +13,7 @@ interface ArtifactDrawerProps {
 }
 
 export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
+  const { user } = useAuth();
   return (
     <AnimatePresence>
       {artifact && (
@@ -33,12 +36,22 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
             className="fixed top-0 right-0 w-full md:w-[85vw] lg:w-[70vw] h-full bg-graphite border-l border-silver/20 shadow-2xl z-50 overflow-y-auto custom-scrollbar flex flex-col md:flex-row"
           >
             {/* Close Button (Mobile) */}
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 bg-carbon border border-silver/20 text-silver hover:text-ivory z-50 md:hidden"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="absolute top-4 right-4 z-50 md:hidden flex gap-2">
+              {user && (
+                <Link
+                  to={`/studio/editor/${artifact.id}`}
+                  className="p-2 bg-carbon border border-silver/20 text-silver hover:text-ivory"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Link>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 bg-carbon border border-silver/20 text-silver hover:text-ivory"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             {/* Left Column: Reading Experience */}
             <div className="flex-1 p-6 md:p-12 lg:p-16 border-b md:border-b-0 md:border-r border-silver/10 overflow-y-auto custom-scrollbar bg-graphite">
@@ -72,14 +85,19 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
                       urlTransform={(url) => url}
                       components={{
                         img: ({node, src, alt, ...props}) => {
-                          if (src && src.startsWith('data:video/')) {
-                            return <video src={src} controls style={{ maxWidth: '100%' }} />
+                          let actualSrc = src;
+                          if (src?.startsWith('inline:')) {
+                            const idx = parseInt(src.split(':')[1]);
+                            actualSrc = artifact.inlineMedia?.[idx] || src;
                           }
-                          return <img src={src} alt={alt} {...props} />
+                          if (actualSrc && actualSrc.startsWith('data:video/')) {
+                            return <video src={actualSrc} controls preload="metadata" style={{ maxWidth: '100%' }} />
+                          }
+                          return <img src={actualSrc} alt={alt} {...props} />
                         }
                       }}
                     >
-                      {artifact.markdownBody}
+                      {artifact.bodyMarkdown}
                     </Markdown>
                   </div>
                 </div>
@@ -91,7 +109,15 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
             <div className="w-full md:w-80 lg:w-96 p-6 md:p-8 bg-carbon/50 overflow-y-auto custom-scrollbar shrink-0">
               
               {/* Close Button (Desktop) */}
-              <div className="hidden md:flex justify-end mb-8">
+              <div className="hidden md:flex justify-end mb-8 gap-2">
+                {user && (
+                  <Link
+                    to={`/studio/editor/${artifact.id}`}
+                    className="p-2 border border-silver/20 text-silver hover:text-ivory bg-graphite hover:bg-silver/10 transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Link>
+                )}
                 <button
                   onClick={onClose}
                   className="p-2 border border-silver/20 text-silver hover:text-ivory bg-graphite hover:bg-silver/10 transition-colors"

@@ -42,7 +42,7 @@ export interface Artifact {
   type: ContentType;
   mediaUrl?: string;
   excerpt: string;
-  markdownBody: string;
+  bodyMarkdown: string;
   authorIntent: AuthorIntent;
   machineCluster: MachineCluster;
   authorLocation: SemanticCoordinate;

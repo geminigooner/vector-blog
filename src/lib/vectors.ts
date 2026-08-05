@@ -64,6 +64,7 @@ export async function loadVisualVectors(): Promise<Record<string, number[]>> {
 }
 
 export function firstImageDataUrl(markdown: string): string | null {
+  if (!markdown) return null;
   const match = markdown.match(/!\[.*?\]\((data:image\/[^)]+)\)/);
   if (match) {
     return match[1];
