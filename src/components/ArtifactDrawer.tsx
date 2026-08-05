@@ -68,7 +68,19 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
 
                 <div className="mt-12 text-lg">
                   <div className="markdown-body">
-                    <Markdown urlTransform={(url) => url}>{artifact.markdownBody}</Markdown>
+                    <Markdown 
+                      urlTransform={(url) => url}
+                      components={{
+                        img: ({node, src, alt, ...props}) => {
+                          if (src && src.startsWith('data:video/')) {
+                            return <video src={src} controls style={{ maxWidth: '100%' }} />
+                          }
+                          return <img src={src} alt={alt} {...props} />
+                        }
+                      }}
+                    >
+                      {artifact.markdownBody}
+                    </Markdown>
                   </div>
                 </div>
               </div>

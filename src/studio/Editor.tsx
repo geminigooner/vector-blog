@@ -133,7 +133,7 @@ export function Editor() {
           setSaveStatus('error');
           setSaveMessage('Published but embedding failed');
         }
-        const img = firstImageDataUrl(finalArt.bodyMarkdown);
+        const img = firstImageDataUrl(finalArt.bodyMarkdown) || finalArt.coverMedia;
         if (img) {
           embedVisual(finalArt.id, img).then((ok) => {
             if (!ok) console.warn('Published but not visually embedded.');
@@ -297,7 +297,19 @@ export function Editor() {
             <div className="markdown-body">
               <h1 className="text-4xl md:text-5xl font-serif text-ivory mb-4">{artifact.title}</h1>
               {artifact.subtitle && <h2 className="text-xl md:text-2xl font-serif text-silver italic mb-8">{artifact.subtitle}</h2>}
-              <Markdown urlTransform={(url) => url}>{artifact.bodyMarkdown || ''}</Markdown>
+              <Markdown 
+                      urlTransform={(url) => url}
+                      components={{
+                        img: ({node, src, alt, ...props}) => {
+                          if (src && src.startsWith('data:video/')) {
+                            return <video src={src} controls style={{ maxWidth: '100%' }} />
+                          }
+                          return <img src={src} alt={alt} {...props} />
+                        }
+                      }}
+                    >
+                      {artifact.bodyMarkdown || ''}
+                    </Markdown>
             </div>
           ) : (
             <div className="space-y-6">
@@ -328,6 +340,86 @@ export function Editor() {
               <div>
                 <div className="flex justify-between items-center mb-2 mt-4">
                   <label className="block text-[9px] uppercase tracking-widest font-mono text-silver/60">Body (Markdown)</label>
+                  {(artifact.type === 'Image artifact' || artifact.type === 'Meme') && (
+                    <label className="cursor-pointer flex items-center gap-2 bg-silver/10 hover:bg-silver/20 text-ivory px-2 py-1 text-[9px] font-mono uppercase tracking-widest transition-colors">
+                      <UploadCloud className="w-3 h-3" /> Upload Media
+                      <input 
+                        type="file" 
+                        accept="image/*,video/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          if (!e.target.files || !e.target.files.length) return;
+                          const file = e.target.files[0];
+                          
+                          if (file.type.startsWith('video/')) {
+                            if (file.size > 800000) {
+                              alert("Video file is too large. Max size is 800KB for base64 storage.");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.readAsDataURL(file);
+                            reader.onload = async (event) => {
+                              const base64String = event.target?.result as string;
+                              
+                              // Extract frame
+                              const video = document.createElement('video');
+                              video.src = base64String;
+                              video.muted = true;
+                              video.playsInline = true;
+                              video.onloadeddata = () => {
+                                video.currentTime = Math.min(1, video.duration / 2 || 0);
+                              };
+                              video.onseeked = () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = video.videoWidth;
+                                canvas.height = video.videoHeight;
+                                const ctx = canvas.getContext('2d');
+                                ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                const frameBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                                
+                                setArtifact(prev => ({
+                                  ...prev,
+                                  coverMedia: frameBase64,
+                                  bodyMarkdown: (prev.bodyMarkdown || '') + `\n\n![video](${base64String})`
+                                }));
+                              };
+                            };
+                            return;
+                          }
+
+                          const reader = new FileReader();
+                          reader.readAsDataURL(file);
+                          reader.onload = async (event) => {
+                            const img = new Image();
+                            img.src = event.target?.result as string;
+                            img.onload = () => {
+                              const canvas = document.createElement('canvas');
+                              let width = img.width;
+                              let height = img.height;
+                              const MAX_SIZE = 800;
+                              if (width > height && width > MAX_SIZE) {
+                                height *= MAX_SIZE / width;
+                                width = MAX_SIZE;
+                              } else if (height > MAX_SIZE) {
+                                width *= MAX_SIZE / height;
+                                height = MAX_SIZE;
+                              }
+                              canvas.width = width;
+                              canvas.height = height;
+                              const ctx = canvas.getContext('2d');
+                              ctx?.drawImage(img, 0, 0, width, height);
+                              const base64String = canvas.toDataURL('image/jpeg', 0.8);
+                              
+                              setArtifact(prev => ({
+                                ...prev,
+                                bodyMarkdown: (prev.bodyMarkdown || '') + `\n\n![image](${base64String})`
+                              }));
+                            };
+                          };
+                        }} 
+                      />
+                    </label>
+                  )}
                   <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1">
                     {['#', '**', '_', '[]()', '>', '-', '1.', '---', '![alt]()'].map(char => (
                       <button 
