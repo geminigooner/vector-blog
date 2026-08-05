@@ -49,3 +49,38 @@ export async function loadVectors(): Promise<Record<string, number[]>> {
   }
   return vecs;
 }
+
+export async function loadVisualVectors(): Promise<Record<string, number[]>> {
+  const vecs: Record<string, number[]> = {};
+  try {
+    const snap = await getDocs(collection(db, 'visualEmbeddings'));
+    snap.forEach(doc => {
+      vecs[doc.id] = doc.data().vector;
+    });
+  } catch (err) {
+    console.error("Failed to load visual vectors", err);
+  }
+  return vecs;
+}
+
+export function firstImageDataUrl(markdown: string): string | null {
+  const match = markdown.match(/!\[.*?\]\((data:image\/[^)]+)\)/);
+  if (match) {
+    return match[1];
+  }
+  return null;
+}
+
+export async function embedVisual(artifactId: string, imageDataUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/embed-visual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artifactId, imageDataUrl })
+    });
+    return res.ok;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+}

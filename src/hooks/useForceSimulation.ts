@@ -50,6 +50,9 @@ export function useForceSimulation(
       } else if (viewMode === 'MACHINE') {
         n.targetX = n.artifact.machineLocation.x;
         n.targetY = n.artifact.machineLocation.y;
+      } else if (viewMode === 'VISUAL') {
+        n.targetX = n.artifact.visualLocation?.x || 0;
+        n.targetY = n.artifact.visualLocation?.y || 0;
       } else {
         // MISREAD
         n.targetX = (n.artifact.authorLocation.x + n.artifact.machineLocation.x) / 2;

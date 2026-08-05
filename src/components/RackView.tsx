@@ -52,8 +52,13 @@ export function RackView({ artifacts, viewMode, queryVector, onSelect, selectedI
         {sorted.map((artifact, idx) => {
           const isSelected = selectedId === artifact.id;
           const relevance = artifact.searchRelevance ?? 1;
-          const isRelevant = queryVector ? relevance > 0.6 : true;
-          const opacity = queryVector ? Math.max(0.3, relevance) : (selectedId && !isSelected ? 0.3 : 1);
+          let isRelevant = queryVector ? relevance > 0.6 : true;
+          let opacity = queryVector ? Math.max(0.3, relevance) : (selectedId && !isSelected ? 0.3 : 1);
+
+          if (viewMode === 'VISUAL' && !artifact.visualLocation) {
+            isRelevant = false;
+            opacity = 0.15;
+          }
 
           return (
             <motion.div
@@ -61,7 +66,7 @@ export function RackView({ artifacts, viewMode, queryVector, onSelect, selectedI
               key={artifact.id}
               className={cn(
                 "relative transition-all cursor-pointer w-full bg-graphite hover:bg-silver/5",
-                isRelevant ? "p-4 md:p-6" : "p-2 md:p-3",
+                isRelevant ? "p-4 md:p-6" : "p-2 md:p-3 pointer-events-none",
                 isSelected && "bg-silver/5"
               )}
               style={{ opacity }}

@@ -1,5 +1,5 @@
 export type ContentType = 'Essay' | 'Field note' | 'Meme' | 'Demo' | 'Image artifact' | 'Project' | 'Meme archive';
-export type ViewMode = 'MACHINE' | 'AUTHOR' | 'MISREAD';
+export type ViewMode = 'MACHINE' | 'AUTHOR' | 'MISREAD' | 'VISUAL';
 export type LayoutMode = 'FIELD' | 'RACK' | 'LIST';
 
 export interface SemanticCoordinate {
@@ -27,6 +27,7 @@ export interface TraceMetadata {
   semanticDisplacement: number;
   nearestMachineNeighbors: SemanticRelationship[];
   nearestAuthorNeighbors: SemanticRelationship[];
+  nearestVisualNeighbors?: SemanticRelationship[];
   writingProvenance?: string;
   imageProvenance?: string;
   modelInvolvement?: string;
@@ -46,6 +47,7 @@ export interface Artifact {
   machineCluster: MachineCluster;
   authorLocation: SemanticCoordinate;
   machineLocation: SemanticCoordinate;
+  visualLocation?: SemanticCoordinate;
   trace: TraceMetadata;
   searchRelevance?: number;
   status?: ArtifactStatus;

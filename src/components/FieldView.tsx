@@ -120,9 +120,15 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
 
         {nodes.map(node => {
           const isSelected = selectedId === node.id;
-          const isRelevant = queryVector ? node.relevance > 0.6 : true;
+          let isRelevant = queryVector ? node.relevance > 0.6 : true;
+          let opacity = queryVector ? Math.max(0.3, node.relevance) : (selectedId && !isSelected ? 0.3 : 1);
+          
+          if (viewMode === 'VISUAL' && !node.artifact.visualLocation) {
+            isRelevant = false;
+            opacity = 0.15;
+          }
+
           const scale = isSelected ? 1.05 : (queryVector ? Math.max(0.7, node.relevance) : 1);
-          const opacity = queryVector ? Math.max(0.3, node.relevance) : (selectedId && !isSelected ? 0.3 : 1);
           
           return (
             <motion.div

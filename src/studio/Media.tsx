@@ -37,53 +37,67 @@ export function Media() {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       
+      reader.onerror = () => {
+        alert("Failed to read file.");
+        setUploading(false);
+      };
+
       reader.onload = async (event) => {
         const img = new Image();
         img.src = event.target?.result as string;
         
-        img.onload = async () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          
-          const MAX_SIZE = 800;
-          if (width > height && width > MAX_SIZE) {
-            height *= MAX_SIZE / width;
-            width = MAX_SIZE;
-          } else if (height > MAX_SIZE) {
-            width *= MAX_SIZE / height;
-            height = MAX_SIZE;
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          const base64String = canvas.toDataURL('image/jpeg', 0.8);
-          
-          if (base64String.length > 800000) {
-             alert("Image is too large even after compression. Please use a smaller image.");
-             setUploading(false);
-             return;
-          }
-
-          const record: MediaRecord = {
-            id,
-            storagePath: 'firestore-base64',
-            downloadUrl: base64String,
-            originalFilename: file.name,
-            mimeType: 'image/jpeg',
-            size: base64String.length,
-            altText: '',
-            createdAt: Date.now(),
-            ownerUid: user.uid,
-            usedByArtifactIds: []
-          };
-
-          await setDoc(doc(db, 'media', id), record);
-          await loadMedia();
+        img.onerror = () => {
+          alert("Failed to load image.");
           setUploading(false);
+        };
+
+        img.onload = async () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            
+            const MAX_SIZE = 800;
+            if (width > height && width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            } else if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            
+            const base64String = canvas.toDataURL('image/jpeg', 0.8);
+            
+            if (base64String.length > 800000) {
+               alert("Image is too large even after compression. Please use a smaller image.");
+               setUploading(false);
+               return;
+            }
+            const record: MediaRecord = {
+              id,
+              storagePath: 'firestore-base64',
+              downloadUrl: base64String,
+              originalFilename: file.name,
+              mimeType: 'image/jpeg',
+              size: base64String.length,
+              altText: '',
+              createdAt: Date.now(),
+              ownerUid: user.uid,
+              usedByArtifactIds: []
+            };
+            await setDoc(doc(db, 'media', id), record);
+            await loadMedia();
+            setUploading(false);
+          } catch (err: any) {
+            console.error(err);
+            alert(err.code || err.message || "Upload failed.");
+            setUploading(false);
+          }
         };
       };
       

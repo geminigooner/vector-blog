@@ -7,7 +7,7 @@ import { FirebaseArtifact, ContentType } from '../types';
 import { generateCoordinate, deleteArtifact } from '../lib/data';
 import { Save, Eye, EyeOff, UploadCloud, ChevronLeft, Trash } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { embedArtifact } from '../lib/vectors';
+import { embedArtifact, firstImageDataUrl, embedVisual } from '../lib/vectors';
 
 const DEFAULT_TRACE = {
   artifactID: '',
@@ -132,6 +132,12 @@ export function Editor() {
         } else {
           setSaveStatus('error');
           setSaveMessage('Published but embedding failed');
+        }
+        const img = firstImageDataUrl(finalArt.bodyMarkdown);
+        if (img) {
+          embedVisual(finalArt.id, img).then((ok) => {
+            if (!ok) console.warn('Published but not visually embedded.');
+          });
         }
       } else {
         setSaveStatus('success');

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { ViewMode, LayoutMode, Artifact, SearchVector } from './types';
 import { getPublishedArtifacts, getPublishedFirebaseArtifacts } from './lib/data';
 import { buildAtlas, semanticSearch, Projection, Vec } from './lib/semantic';
-import { loadVectors, embedQuery } from './lib/vectors';
+import { loadVectors, embedQuery, loadVisualVectors } from './lib/vectors';
 import { FieldView } from './components/FieldView';
 import { RackView } from './components/RackView';
 import { ArtifactDrawer } from './components/ArtifactDrawer';
@@ -45,8 +45,8 @@ export function PublicApp() {
   const [vectors, setVectors] = useState<Record<string, Vec>>({});
 
   useEffect(() => {
-    Promise.all([getPublishedArtifacts(), loadVectors(), getPublishedFirebaseArtifacts()])
-      .then(([posts, vecs, raw]) => {
+    Promise.all([getPublishedArtifacts(), loadVectors(), loadVisualVectors(), getPublishedFirebaseArtifacts()])
+      .then(([posts, vecs, vVecs, raw]) => {
         // topics/keywords drive AUTHOR space; embeddings drive MACHINE space
         const tagsById: Record<string, string[]> = {};
         const categoryById: Record<string, string> = {};
@@ -55,7 +55,7 @@ export function PublicApp() {
           categoryById[r.id] = r.authorCategory || r.authorIntent || 'Unsorted';
         }
 
-        const { artifacts: laid, projection: proj } = buildAtlas(posts, vecs, tagsById, categoryById);
+        const { artifacts: laid, projection: proj } = buildAtlas(posts, vecs, tagsById, categoryById, vVecs);
 
         setVectors(vecs);
         setProjection(proj);
@@ -111,6 +111,11 @@ export function PublicApp() {
           <p className="font-serif text-sm text-silver/60 mt-4 leading-snug transition-opacity duration-1000 opacity-100">
             An archive arranged twice: once by the machine, once by its author.
           </p>
+          {viewMode === 'VISUAL' && (
+            <div className="font-mono text-[10px] uppercase tracking-widest text-ivory mt-4">
+              ARRANGED BY IMAGE — SigLIP2, 768d
+            </div>
+          )}
           <div className="mt-4 flex gap-4 text-[10px] uppercase font-mono tracking-widest">
             <Link to="/studio" className="text-silver hover:text-ivory transition-colors border border-silver/20 px-2 py-1 bg-carbon">STUDIO</Link>
           </div>
@@ -138,8 +143,8 @@ export function PublicApp() {
             )}
           </div>
 
-          <div className="flex p-1 bg-graphite/80 backdrop-blur rounded-none border border-silver/20">
-            {(['MACHINE', 'AUTHOR', 'MISREAD'] as ViewMode[]).map(mode => (
+          <div className="flex p-1 bg-graphite/80 backdrop-blur rounded-none border border-silver/20 overflow-x-auto custom-scrollbar">
+            {(['MACHINE', 'AUTHOR', 'MISREAD', 'VISUAL'] as ViewMode[]).map(mode => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}

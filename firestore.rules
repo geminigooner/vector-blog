@@ -25,5 +25,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isOwner();
     }
+    
+    match /visualEmbeddings/{document=**} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
   }
 }

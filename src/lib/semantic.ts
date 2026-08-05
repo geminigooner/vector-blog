@@ -139,10 +139,14 @@ export function buildAtlas(
   posts: any[],
   vecs: Record<string, Vec>,
   tagsById: Record<string, string[]>,
-  categoryById: Record<string, string>
+  categoryById: Record<string, string>,
+  visualVecs: Record<string, Vec> = {}
 ) {
   const postVecs = posts.map(p => vecs[p.id]).filter(Boolean);
   const projection = fitProjection(postVecs);
+  
+  const visualPostVecs = posts.map(p => visualVecs[p.id]).filter(Boolean);
+  const visualProjection = fitProjection(visualPostVecs);
   
   const artifacts = posts.map(post => {
     let machineLocation = { x: 0, y: 0 };
@@ -152,10 +156,17 @@ export function buildAtlas(
       machineLocation = post.machineLocation;
     }
     
+    let visualLocation: { x: number, y: number } | undefined;
+    if (visualProjection && visualVecs[post.id]) {
+      visualLocation = project(visualVecs[post.id], visualProjection);
+    }
+    
     // authorLocation could be simple cluster packing or physics based on categories/tags.
     let authorLocation = { x: 0, y: 0 }; 
+
     const nearestMachineNeighbors = machineNeighbors(post.id, vecs, 3);
     const nearestAuthorNeighbors = authorNeighbors(post.id, tagsById, 3);
+    const nearestVisualNeighbors = machineNeighbors(post.id, visualVecs, 3);
 
     const semanticDisplacement = Math.sqrt(
       Math.pow(machineLocation.x - authorLocation.x, 2) + 
@@ -166,16 +177,18 @@ export function buildAtlas(
       ...post,
       machineLocation,
       authorLocation,
+      visualLocation,
       trace: {
         ...(post.trace || {}),
         nearestMachineNeighbors,
         nearestAuthorNeighbors: nearestAuthorNeighbors.length ? nearestAuthorNeighbors : nearestMachineNeighbors,
+        nearestVisualNeighbors,
         semanticDisplacement
       }
     };
   });
   
-  return { artifacts, projection };
+  return { artifacts, projection, visualProjection };
 }
 
 export function semanticSearch(baseArtifacts: any[], vectors: Record<string, Vec>, qvec: Vec, projection: Projection | null) {
