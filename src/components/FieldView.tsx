@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import useMeasure from 'react-use-measure';
 import { motion, AnimatePresence } from 'motion/react';
 import { Artifact, ViewMode, SearchVector } from '../types';
+import { getFirstImage } from '../lib/data';
 import { useForceSimulation } from '../hooks/useForceSimulation';
 import { cn } from '../utils/cn';
 import { LocateFixed } from 'lucide-react';
@@ -168,16 +169,28 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                   {isRelevant && node.artifact.type === 'Meme' && <div className="w-1.5 h-1.5 bg-indicator-green" />}
                   {isRelevant && node.artifact.type === 'Project' && <div className="w-1.5 h-1.5 bg-indicator-blue" />}
                   {isRelevant && node.artifact.type === 'Essay' && <div className="w-1.5 h-1.5 bg-rose" />}
-                </div>
+                </div>                
+                {isRelevant && getFirstImage(node.artifact) && (
+                  <div className="w-full h-32 mt-2 mb-2 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm">
+                    <img 
+                      src={getFirstImage(node.artifact)} 
+                      alt="Thumbnail" 
+                      className="w-full h-full object-cover" 
+                      draggable={false}
+                    />
+                  </div>
+                )}
                 
-                <h3 className={cn(
-                  "font-serif leading-tight",
-                  isRelevant ? "text-lg text-ivory" : "text-sm text-ivory/70 line-clamp-2"
-                )}>
-                  {node.artifact.title}
-                </h3>
+                {node.artifact.title && (
+                  <h3 className={cn(
+                    "font-serif leading-tight",
+                    isRelevant ? "text-lg text-ivory" : "text-sm text-ivory/70 line-clamp-2"
+                  )}>
+                    {node.artifact.title}
+                  </h3>
+                )}
                 
-                {isRelevant && (
+                {isRelevant && node.artifact.excerpt && (
                   <p className="text-xs text-silver line-clamp-3 mt-2 leading-relaxed">
                     {node.artifact.excerpt}
                   </p>

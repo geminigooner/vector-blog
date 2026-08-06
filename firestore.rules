@@ -9,7 +9,7 @@ service cloud.firestore {
 
     match /artifacts/{document=**} {
       // Anyone can read published artifacts
-      allow read: if resource.data.status == "published" || isOwner();
+      allow read: if true;
       allow write: if isOwner();
     }
     

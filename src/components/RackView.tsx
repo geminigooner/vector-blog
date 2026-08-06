@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Artifact, ViewMode, SearchVector } from '../types';
+import { getFirstImage } from '../lib/data';
 import { cn } from '../utils/cn';
 import { LocateFixed } from 'lucide-react';
 
@@ -95,19 +96,32 @@ export function RackView({ artifacts, viewMode, queryVector, onSelect, selectedI
 
                 {/* Content column */}
                 <div className="flex-1 min-w-0">
-                  <h3 className={cn(
-                    "font-serif leading-tight text-ivory truncate md:whitespace-normal",
-                    isRelevant ? "text-lg md:text-xl" : "text-sm text-ivory/70"
-                  )}>
-                    {artifact.title}
-                  </h3>
+                  {artifact.title && (
+                    <h3 className={cn(
+                      "font-serif leading-tight text-ivory truncate md:whitespace-normal",
+                      isRelevant ? "text-lg md:text-xl" : "text-sm text-ivory/70"
+                    )}>
+                      {artifact.title}
+                    </h3>
+                  )}
                   
-                  {isRelevant && (
+                  {isRelevant && artifact.excerpt && (
                     <p className="text-sm text-silver mt-2 leading-relaxed line-clamp-2 md:line-clamp-none max-w-2xl">
                       {artifact.excerpt}
                     </p>
                   )}
                 </div>
+
+                {isRelevant && getFirstImage(artifact) && (
+                  <div className="w-24 h-24 shrink-0 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm ml-4">
+                    <img 
+                      src={getFirstImage(artifact)} 
+                      alt="Thumbnail" 
+                      className="w-full h-full object-cover" 
+                      draggable={false}
+                    />
+                  </div>
+                )}
 
               </div>
             </motion.div>

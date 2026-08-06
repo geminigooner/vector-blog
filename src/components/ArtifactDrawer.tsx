@@ -69,6 +69,16 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
                   </span>
                 </div>
 
+                {artifact.coverMedia && typeof artifact.coverMedia === 'string' && (
+                  <div className="w-full mb-8 rounded-sm overflow-hidden border border-silver/10 bg-carbon/50">
+                    {artifact.coverMedia.startsWith('data:video/') ? (
+                      <video src={artifact.coverMedia} controls className="w-full max-h-[60vh] object-contain" />
+                    ) : (
+                      <img src={artifact.coverMedia} alt={artifact.title || 'Cover'} className="w-full max-h-[60vh] object-contain" />
+                    )}
+                  </div>
+                )}
+
                 <h1 className="font-serif text-3xl md:text-5xl text-ivory leading-tight mb-4">
                   {artifact.title}
                 </h1>
@@ -97,7 +107,7 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
                         }
                       }}
                     >
-                      {artifact.bodyMarkdown}
+                      {artifact.bodyMarkdown || ''}
                     </Markdown>
                   </div>
                 </div>

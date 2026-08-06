@@ -43,6 +43,8 @@ export interface Artifact {
   mediaUrl?: string;
   excerpt: string;
   bodyMarkdown: string;
+  inlineMedia?: string[];
+  coverMedia?: string;
   authorIntent: AuthorIntent;
   machineCluster: MachineCluster;
   authorLocation: SemanticCoordinate;

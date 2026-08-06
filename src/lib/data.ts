@@ -9,10 +9,12 @@ export function mapFirebaseToArtifact(fa: FirebaseArtifact): Artifact {
     id: fa.id,
     title: fa.title,
     subtitle: fa.subtitle,
-    date: new Date(fa.publishedAt || fa.createdAt).toLocaleDateString(),
+    date: new Date(fa.publishedAt || fa.createdAt || Date.now()).toLocaleDateString(),
     type: fa.type,
     excerpt: fa.excerpt,
-    bodyMarkdown: fa.bodyMarkdown,
+    bodyMarkdown: fa.bodyMarkdown || fa.markdownBody,
+    inlineMedia: fa.inlineMedia,
+    coverMedia: fa.coverMedia,
     authorIntent: fa.authorIntent || 'Unsorted',
     machineCluster: fa.machineCluster || 'Unsorted',
     authorLocation: fa.authorCoordinate || { x: 0, y: 0 },
@@ -20,6 +22,21 @@ export function mapFirebaseToArtifact(fa: FirebaseArtifact): Artifact {
     trace: fa.traceMetadata,
     status: fa.status,
   };
+}
+
+export function getFirstImage(artifact: Artifact): string | undefined {
+  if (artifact.coverMedia && typeof artifact.coverMedia === 'string') return artifact.coverMedia;
+  if (Array.isArray(artifact.inlineMedia)) {
+    const img = artifact.inlineMedia.find(m => typeof m === 'string' && (m.startsWith('data:image/') || m.startsWith('http')));
+    if (img) return img;
+  }
+  if (artifact.bodyMarkdown && typeof artifact.bodyMarkdown === 'string') {
+    const match = artifact.bodyMarkdown.match(/!\[.*?\]\((.*?)\)/);
+    if (match && match[1] && !match[1].startsWith('inline:')) {
+      return match[1];
+    }
+  }
+  return undefined;
 }
 
 export async function getPublishedArtifacts(): Promise<Artifact[]> {
@@ -33,11 +50,13 @@ export async function getPublishedArtifacts(): Promise<Artifact[]> {
     snap.forEach((doc) => {
       results.push(mapFirebaseToArtifact(doc.data() as FirebaseArtifact));
     });
+     
+    
     return results;
+
   } catch (err) {
     console.error("Failed to load artifacts", err);
-    // Fallback to mock data if firebase not setup or empty
-    return mockArtifacts;
+    return [];
   }
 }
 
