@@ -14,6 +14,8 @@ interface ArtifactDrawerProps {
 
 export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
   const { user } = useAuth();
+  const [mobileTab, setMobileTab] = React.useState<'content' | 'trace'>('content');
+
   return (
     <AnimatePresence>
       {artifact && (
@@ -33,31 +35,60 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 w-full md:w-[85vw] lg:w-[70vw] h-full bg-graphite border-l border-silver/20 shadow-2xl z-50 overflow-y-auto custom-scrollbar flex flex-col md:flex-row"
+            className="fixed top-0 right-0 w-full md:w-[85vw] lg:w-[70vw] h-full bg-graphite border-l border-silver/20 shadow-2xl z-50 overflow-hidden flex flex-col md:flex-row"
           >
-            {/* Close Button (Mobile) */}
-            <div className="absolute top-4 right-4 z-50 md:hidden flex gap-2">
-              {user && (
-                <Link
-                  to={`/studio/editor/${artifact.id}`}
-                  className="p-2 bg-carbon border border-silver/20 text-silver hover:text-ivory"
+            {/* Mobile Header & Tabs */}
+            <div className="md:hidden flex flex-col border-b border-silver/10 bg-graphite shrink-0 pt-4">
+              <div className="flex justify-between items-center px-6 mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-silver/60 bg-carbon px-2 py-1 border border-silver/10">
+                    {artifact.id.replace('art-', '#')}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-widest font-mono text-silver">
+                    {artifact.type}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {user && (
+                    <Link
+                      to={`/studio/editor/${artifact.id}`}
+                      className="p-2 bg-carbon border border-silver/20 text-silver hover:text-ivory"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Link>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="p-2 bg-carbon border border-silver/20 text-silver hover:text-ivory"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex px-6 gap-6 text-[10px] uppercase tracking-widest font-mono">
+                <button 
+                  onClick={() => setMobileTab('content')}
+                  className={cn("pb-3 border-b-2 transition-colors", mobileTab === 'content' ? "border-ivory text-ivory" : "border-transparent text-silver/60 hover:text-ivory")}
                 >
-                  <Edit2 className="w-4 h-4" />
-                </Link>
-              )}
-              <button
-                onClick={onClose}
-                className="p-2 bg-carbon border border-silver/20 text-silver hover:text-ivory"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                  Artifact
+                </button>
+                <button 
+                  onClick={() => setMobileTab('trace')}
+                  className={cn("pb-3 border-b-2 transition-colors", mobileTab === 'trace' ? "border-ivory text-ivory" : "border-transparent text-silver/60 hover:text-ivory")}
+                >
+                  Trace Record
+                </button>
+              </div>
             </div>
 
             {/* Left Column: Reading Experience */}
-            <div className="flex-1 p-6 md:p-12 lg:p-16 border-b md:border-b-0 md:border-r border-silver/10 overflow-y-auto custom-scrollbar bg-graphite">
+            <div className={cn(
+              "flex-1 p-6 md:p-12 lg:p-16 border-b md:border-b-0 md:border-r border-silver/10 overflow-y-auto custom-scrollbar bg-graphite",
+              mobileTab === 'content' ? "block" : "hidden md:block"
+            )}>
               
               <div className="max-w-2xl mx-auto">
-                <div className="flex items-center gap-3 mb-8">
+                <div className="hidden md:flex items-center gap-3 mb-8">
                   <span className="text-[10px] font-mono text-silver/60 bg-carbon px-2 py-1 border border-silver/10">
                     {artifact.id.replace('art-', '#')}
                   </span>
@@ -116,7 +147,10 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
             </div>
 
             {/* Right Column: Trace Metadata */}
-            <div className="w-full md:w-80 lg:w-96 p-6 md:p-8 bg-carbon/50 overflow-y-auto custom-scrollbar shrink-0">
+            <div className={cn(
+              "w-full md:w-80 lg:w-96 p-6 md:p-8 bg-carbon/50 overflow-y-auto custom-scrollbar shrink-0",
+              mobileTab === 'trace' ? "block" : "hidden md:block"
+            )}>
               
               {/* Close Button (Desktop) */}
               <div className="hidden md:flex justify-end mb-8 gap-2">
