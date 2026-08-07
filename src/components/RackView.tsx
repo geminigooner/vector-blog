@@ -113,13 +113,21 @@ export function RackView({ artifacts, viewMode, queryVector, onSelect, selectedI
                 </div>
 
                 {isRelevant && getFirstImage(artifact) && (
-                  <div className="w-24 h-24 shrink-0 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm ml-4">
-                    <img 
-                      src={getFirstImage(artifact)} 
-                      alt="Thumbnail" 
-                      className="w-full h-full object-cover" 
-                      draggable={false}
-                    />
+                  <div className="w-24 h-24 shrink-0 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm ml-4 aspect-square">
+                    {getFirstImage(artifact)?.startsWith('data:video/') ? (
+                      <video 
+                        src={getFirstImage(artifact)} 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <img 
+                        src={getFirstImage(artifact)} 
+                        alt="Thumbnail" 
+                        loading="lazy"
+                        className="w-full h-full object-cover" 
+                        draggable={false}
+                      />
+                    )}
                   </div>
                 )}
 

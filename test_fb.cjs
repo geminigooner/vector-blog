@@ -5,6 +5,6 @@ const puppeteer = require('puppeteer');
   await page.goto('http://localhost:3000');
   await new Promise(r => setTimeout(r, 4000));
   const html = await page.content();
-  console.log("Has mock text?", html.includes("To build a machine"));
+  console.log("Found images in PublicApp?", (html.match(/<img[^>]+>/g) || []).length);
   await browser.close();
 })();

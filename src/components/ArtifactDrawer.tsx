@@ -70,11 +70,11 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
                 </div>
 
                 {artifact.coverMedia && typeof artifact.coverMedia === 'string' && (
-                  <div className="w-full mb-8 rounded-sm overflow-hidden border border-silver/10 bg-carbon/50">
+                  <div className="w-full mb-8 rounded-sm overflow-hidden border border-silver/10 bg-carbon/50 flex justify-center">
                     {artifact.coverMedia.startsWith('data:video/') ? (
-                      <video src={artifact.coverMedia} controls className="w-full max-h-[60vh] object-contain" />
+                      <video src={artifact.coverMedia} controls className="max-w-full h-auto" />
                     ) : (
-                      <img src={artifact.coverMedia} alt={artifact.title || 'Cover'} className="w-full max-h-[60vh] object-contain" />
+                      <img src={artifact.coverMedia} alt={artifact.title || 'Cover'} className="max-w-full h-auto" />
                     )}
                   </div>
                 )}
@@ -101,9 +101,9 @@ export function ArtifactDrawer({ artifact, onClose }: ArtifactDrawerProps) {
                             actualSrc = artifact.inlineMedia?.[idx] || src;
                           }
                           if (actualSrc && actualSrc.startsWith('data:video/')) {
-                            return <video src={actualSrc} controls preload="metadata" style={{ maxWidth: '100%' }} />
+                            return <video src={actualSrc} controls preload="metadata" style={{ maxWidth: '100%', height: 'auto' }} />
                           }
-                          return <img src={actualSrc} alt={alt} {...props} />
+                          return <img src={actualSrc} alt={alt} style={{ maxWidth: '100%', height: 'auto' }} {...props} />
                         }
                       }}
                     >

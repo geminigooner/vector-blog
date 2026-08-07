@@ -171,13 +171,21 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                   {isRelevant && node.artifact.type === 'Essay' && <div className="w-1.5 h-1.5 bg-rose" />}
                 </div>                
                 {isRelevant && getFirstImage(node.artifact) && (
-                  <div className="w-full h-32 mt-2 mb-2 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm">
-                    <img 
-                      src={getFirstImage(node.artifact)} 
-                      alt="Thumbnail" 
-                      className="w-full h-full object-cover" 
-                      draggable={false}
-                    />
+                  <div className="w-full aspect-square mt-2 mb-2 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm">
+                    {getFirstImage(node.artifact)?.startsWith('data:video/') ? (
+                      <video 
+                        src={getFirstImage(node.artifact)} 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <img 
+                        src={getFirstImage(node.artifact)} 
+                        alt="Thumbnail" 
+                        loading="lazy"
+                        className="w-full h-full object-cover" 
+                        draggable={false}
+                      />
+                    )}
                   </div>
                 )}
                 
