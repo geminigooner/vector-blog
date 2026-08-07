@@ -162,7 +162,7 @@ export function buildAtlas(
     }
     
     // authorLocation could be simple cluster packing or physics based on categories/tags.
-    let authorLocation = { x: 0, y: 0 }; 
+    let authorLocation = post.authorLocation || { x: 0, y: 0 }; 
 
     const nearestMachineNeighbors = machineNeighbors(post.id, vecs, 3);
     const nearestAuthorNeighbors = authorNeighbors(post.id, tagsById, 3);
@@ -180,6 +180,8 @@ export function buildAtlas(
       visualLocation,
       trace: {
         ...(post.trace || {}),
+        machineCoordinate: machineLocation,
+        authorCoordinate: authorLocation,
         nearestMachineNeighbors,
         nearestAuthorNeighbors: nearestAuthorNeighbors.length ? nearestAuthorNeighbors : nearestMachineNeighbors,
         nearestVisualNeighbors,
