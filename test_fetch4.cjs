@@ -6,26 +6,13 @@ const app = initializeApp({
   appId: "1:477131639733:web:70e07f3e4cb647e364a7fc",
   apiKey: "AIzaSyC4R3mGscx0P77zlLmNf_2wkkxH7UvwdAs",
   authDomain: "gen-lang-client-0376397936.firebaseapp.com",
-  storageBucket: "gen-lang-client-0376397936.firebasestorage.app",
-  messagingSenderId: "477131639733",
 });
-
 const db = getFirestore(app, "ai-studio-latentaffairs-e0a53ccd-a805-44a7-a9c4-952e0d7539f9");
-
 async function run() {
-  try {
-    const q = query(collection(db, 'artifacts'));
-    const snap = await getDocs(q);
-    const results = [];
-    snap.forEach((doc) => {
-      results.push(doc.data());
-    });
-    console.log("Documents fetched:", results.length);
-    results.sort((a, b) => b.updatedAt - a.updatedAt);
-    console.log("Sort successful");
-  } catch(e) {
-    console.error("Error:", e);
-  }
+  const snap = await getDocs(query(collection(db, 'artifacts')));
+  const results = [];
+  snap.forEach((doc) => { results.push(doc.data()); });
+  console.log(results.map(r => r.updatedAt));
   process.exit(0);
 }
 run();

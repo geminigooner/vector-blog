@@ -14,7 +14,7 @@ const firebaseConfig = {
   firestoreDatabaseId: "ai-studio-latentaffairs-e0a53ccd-a805-44a7-a9c4-952e0d7539f9",
 };
 
-export const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig, "LatentAffairsV3");
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const storage = getStorage(app);
 export const auth = getAuth(app);

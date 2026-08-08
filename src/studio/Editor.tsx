@@ -127,21 +127,16 @@ export function Editor() {
     let downloadUrl = "";
     
     try {
-      // 1. Upload to storage (ignore failure if rules block it, just warn)
-      try {
-        const storageRef = ref(storage, `pdfs/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`);
-        await uploadBytes(storageRef, file);
-        downloadUrl = await getDownloadURL(storageRef);
-      } catch (uploadErr) {
-        console.error("Storage upload error:", uploadErr);
-        // Continue to parse anyway, just won't have download link
-      }
+      // 1. Upload to storage
+      const storageRef = ref(storage, `pdfs/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`);
+      await uploadBytes(storageRef, file);
+      downloadUrl = await getDownloadURL(storageRef);
       
-      // 2. Send raw file buffer to backend to prevent iOS Safari memory crash
+      // 2. Send storage URL to backend to bypass proxy size limits
       const res = await fetch('/api/parse-pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/pdf' },
-        body: file
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ downloadUrl })
       });
       
       if (!res.ok) {

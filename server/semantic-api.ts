@@ -93,10 +93,20 @@ semanticRouter.post('/embed-query', async (req, res) => {
   }
 });
 
-semanticRouter.post('/parse-pdf', express.raw({ type: 'application/pdf', limit: '50mb' }), async (req, res) => {
+semanticRouter.post('/parse-pdf', express.json({ limit: '10mb' }), async (req, res) => {
   try {
-    const pdfBuffer = req.body;
-    if (!Buffer.isBuffer(pdfBuffer)) return res.status(400).json({ error: 'Missing PDF body or wrong Content-Type' });
+    let pdfBuffer: Buffer;
+
+    if (Buffer.isBuffer(req.body)) {
+      pdfBuffer = req.body;
+    } else if (req.body.downloadUrl) {
+      const fetchRes = await fetch(req.body.downloadUrl);
+      if (!fetchRes.ok) throw new Error("Failed to fetch PDF from storage");
+      const arrayBuffer = await fetchRes.arrayBuffer();
+      pdfBuffer = Buffer.from(arrayBuffer);
+    } else {
+      return res.status(400).json({ error: 'Missing downloadUrl or PDF body' });
+    }
     
     const pdfBase64 = pdfBuffer.toString('base64');
     
@@ -114,7 +124,7 @@ Please follow these formatting rules exactly:
 - Do NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks, just return the raw text.`;
 
     const response = await getAi().models.generateContent({
-      model: 'gemini-3.6-flash', // Corrected model name
+      model: 'gemini-3.6-flash',
       contents: [
         {
           role: 'user',
