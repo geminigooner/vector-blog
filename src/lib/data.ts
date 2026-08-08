@@ -100,7 +100,14 @@ export async function saveArtifact(data: FirebaseArtifact) {
 }
 
 export async function deleteArtifact(id: string) {
-  await deleteDoc(doc(db, 'artifacts', id));
+  try {
+    await deleteDoc(doc(db, 'artifacts', id));
+    await deleteDoc(doc(db, 'embeddings', id));
+    await deleteDoc(doc(db, 'visualEmbeddings', id));
+  } catch (err) {
+    console.error("Failed to delete artifact fully:", err);
+    throw err;
+  }
 }
 
 // Generate simple hash-based coords for temporary atlas layout

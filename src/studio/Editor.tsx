@@ -45,7 +45,7 @@ export function Editor() {
     traceMetadata: { ...DEFAULT_TRACE }
   });
   
-  const [loading, setLoading] = useState(id !== undefined);
+  const [loading, setLoading] = useState(id !== undefined && id !== 'new');
   const [saving, setSaving] = useState(false);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -53,7 +53,7 @@ export function Editor() {
   const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
-    if (id) {
+    if (id && id !== 'new') {
       getDoc(doc(db, 'artifacts', id)).then(snap => {
         if (snap.exists()) {
           const data = snap.data() as FirebaseArtifact;
@@ -266,7 +266,7 @@ export function Editor() {
         setSaveMessage('Draft saved successfully');
       }
 
-      if (!id) {
+      if (id === 'new') {
         navigate(`/studio/editor/${finalArt.id}`, { replace: true });
       }
     } catch (err: any) {
@@ -282,7 +282,7 @@ export function Editor() {
   if (loading) return <div className="p-12 text-silver font-mono">Loading...</div>;
 
   return (
-    <div className="flex flex-col h-screen md:h-full">
+    <div className="flex flex-col h-full">
       {/* Editor Header */}
       <div className="flex-none bg-carbon border-b border-silver/10 p-4 flex justify-between items-center sticky top-0 z-10">
         <div className="flex items-center gap-4">
