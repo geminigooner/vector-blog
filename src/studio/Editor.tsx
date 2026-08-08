@@ -5,7 +5,9 @@ import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { FirebaseArtifact, ContentType } from '../types';
 import { generateCoordinate, deleteArtifact } from '../lib/data';
-import { Save, Eye, EyeOff, UploadCloud, ChevronLeft, Trash } from 'lucide-react';
+import { Save, Eye, EyeOff, UploadCloud, ChevronLeft, Trash, FileText, Loader2 } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../lib/firebase';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import TurndownService from 'turndown';
@@ -45,6 +47,7 @@ export function Editor() {
   
   const [loading, setLoading] = useState(id !== undefined);
   const [saving, setSaving] = useState(false);
+  const [pdfUploading, setPdfUploading] = useState(false);
   const [preview, setPreview] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
@@ -104,6 +107,66 @@ export function Editor() {
       ...prev, 
       traceMetadata: { ...prev.traceMetadata, [name]: value } as any
     }));
+  };
+
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files.length) return;
+    const file = e.target.files[0];
+    if (file.type !== 'application/pdf') {
+      alert("Please upload a valid PDF file.");
+      return;
+    }
+    
+    if (file.size > 20 * 1024 * 1024) { // 20MB limit for Gemini API
+      alert("PDF file is too large. Max size is 20MB.");
+      return;
+    }
+    
+    setPdfUploading(true);
+    let downloadUrl = "";
+    
+    try {
+      // 1. Upload to storage (ignore failure if rules block it, just warn)
+      try {
+        const storageRef = ref(storage, `pdfs/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`);
+        await uploadBytes(storageRef, file);
+        downloadUrl = await getDownloadURL(storageRef);
+      } catch (uploadErr) {
+        console.error("Storage upload error:", uploadErr);
+        // Continue to parse anyway, just won't have download link
+      }
+      
+      // 2. Send raw file buffer to backend to prevent iOS Safari memory crash
+      const res = await fetch('/api/parse-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: file
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || 'PDF parsing failed');
+      }
+      
+      const data = await res.json();
+      
+      const newMarkdown = (artifact.bodyMarkdown ? artifact.bodyMarkdown + '\n\n---\n\n' : '') 
+        + data.markdown
+        + (downloadUrl ? `\n\n[Download original PDF](${downloadUrl})` : '');
+        
+      setArtifact(prev => ({
+        ...prev,
+        bodyMarkdown: newMarkdown
+      }));
+      
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to parse PDF: " + err.message);
+    } finally {
+      setPdfUploading(false);
+      e.target.value = ''; // reset
+    }
   };
 
   const handleDelete = async () => {
@@ -410,8 +473,20 @@ export function Editor() {
               <div>
                 <div className="flex justify-between items-center mb-2 mt-4">
                   <label className="block text-[9px] uppercase tracking-widest font-mono text-silver/60">Body (Markdown)</label>
-                  {(artifact.type === 'Image artifact' || artifact.type === 'Meme') && (
+                  <div className="flex items-center gap-2">
                     <label className="cursor-pointer flex items-center gap-2 bg-silver/10 hover:bg-silver/20 text-ivory px-2 py-1 text-[9px] font-mono uppercase tracking-widest transition-colors">
+                      {pdfUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                      {pdfUploading ? "Parsing..." : "Upload PDF"}
+                      <input 
+                        type="file" 
+                        accept="application/pdf" 
+                        className="hidden" 
+                        disabled={pdfUploading}
+                        onChange={handlePdfUpload}
+                      />
+                    </label>
+                    {(artifact.type === 'Image artifact' || artifact.type === 'Meme') && (
+                      <label className="cursor-pointer flex items-center gap-2 bg-silver/10 hover:bg-silver/20 text-ivory px-2 py-1 text-[9px] font-mono uppercase tracking-widest transition-colors">
                       <UploadCloud className="w-3 h-3" /> Upload Media
                       <input 
                         type="file" 
@@ -492,6 +567,7 @@ export function Editor() {
                       />
                     </label>
                   )}
+                  </div>
                   <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1">
                     {['#', '##', '###', '**', '_', '[]()', '>', '-', '1.', '---', '![alt]()', '✦', '✧', '✺', '※', '—'].map(char => (
                       <button 

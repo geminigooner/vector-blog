@@ -1,3 +1,4 @@
+import express from 'express';
 import { Router } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { initializeApp, getApps, getApp, cert, applicationDefault } from 'firebase-admin/app';
@@ -88,6 +89,68 @@ semanticRouter.post('/embed-query', async (req, res) => {
     const vec = await getEmbedding(query);
     res.json({ values: vec });
   } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+semanticRouter.post('/parse-pdf', express.raw({ type: 'application/pdf', limit: '50mb' }), async (req, res) => {
+  try {
+    const pdfBuffer = req.body;
+    if (!Buffer.isBuffer(pdfBuffer)) return res.status(400).json({ error: 'Missing PDF body or wrong Content-Type' });
+    
+    const pdfBase64 = pdfBuffer.toString('base64');
+    
+    // Prompt carefully constructed to meet user's PDF parsing requirements
+    const prompt = `Convert this PDF document into clean Markdown.
+Please follow these formatting rules exactly:
+- Preserve paragraph breaks as accurately as possible.
+- Detect headings and convert them to Markdown headings (#, ##, etc.).
+- Preserve bold and italic text when possible.
+- Convert lists into Markdown lists, using the '✦' character as the bullet symbol.
+- Detect tables and convert them into Markdown tables where possible.
+- For images or figures, insert a placeholder like \`![Figure from PDF]()\` or describe it.
+- Preserve blockquotes / pull quotes using '> '.
+- If formatting cannot be confidently preserved, prefer clean readable Markdown over trying to reproduce the layout exactly.
+- Do NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks, just return the raw text.`;
+
+    const response = await getAi().models.generateContent({
+      model: 'gemini-3.6-flash', // Corrected model name
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: 'application/pdf',
+                data: pdfBase64
+              }
+            }
+          ]
+        }
+      ]
+    });
+    
+    let text = response.text || '';
+    if (text.startsWith('\`\`\`markdown\n')) {
+      text = text.substring(12);
+      if (text.endsWith('\`\`\`\n')) {
+        text = text.substring(0, text.length - 4);
+      } else if (text.endsWith('\`\`\`')) {
+        text = text.substring(0, text.length - 3);
+      }
+    } else if (text.startsWith('\`\`\`\n')) {
+      text = text.substring(4);
+      if (text.endsWith('\`\`\`\n')) {
+        text = text.substring(0, text.length - 4);
+      } else if (text.endsWith('\`\`\`')) {
+        text = text.substring(0, text.length - 3);
+      }
+    }
+
+    res.json({ markdown: text });
+  } catch (err: any) {
+    console.error("PDF Parsing error:", err);
     res.status(500).json({ error: err.message });
   }
 });
