@@ -7,6 +7,8 @@ import { FirebaseArtifact, ContentType } from '../types';
 import { generateCoordinate, deleteArtifact } from '../lib/data';
 import { Save, Eye, EyeOff, UploadCloud, ChevronLeft, Trash } from 'lucide-react';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import TurndownService from 'turndown';
 import { embedArtifact, firstImageDataUrl, embedVisual } from '../lib/vectors';
 
 const DEFAULT_TRACE = {
@@ -360,6 +362,7 @@ export function Editor() {
               <h1 className="text-4xl md:text-5xl font-serif text-ivory mb-4">{artifact.title}</h1>
               {artifact.subtitle && <h2 className="text-xl md:text-2xl font-serif text-silver italic mb-8">{artifact.subtitle}</h2>}
               <Markdown 
+                      remarkPlugins={[remarkGfm]}
                       urlTransform={(url) => url}
                       components={{
                         img: ({node, src, alt, ...props}) => {
@@ -490,7 +493,7 @@ export function Editor() {
                     </label>
                   )}
                   <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1">
-                    {['#', '**', '_', '[]()', '>', '-', '1.', '---', '![alt]()'].map(char => (
+                    {['#', '##', '###', '**', '_', '[]()', '>', '-', '1.', '---', '![alt]()', '✦', '✧', '✺', '※', '—'].map(char => (
                       <button 
                         key={char} 
                         type="button"
@@ -509,12 +512,14 @@ export function Editor() {
                   onPaste={(e) => {
                     const items = e.clipboardData?.items;
                     if (!items) return;
+                    let hasImage = false;
+                    let htmlItem = null;
                     for (let i = 0; i < items.length; i++) {
                       if (items[i].type.indexOf('image') !== -1) {
+                        hasImage = true;
                         e.preventDefault();
                         const file = items[i].getAsFile();
                         if (!file) continue;
-                        
                         const reader = new FileReader();
                         reader.readAsDataURL(file);
                         reader.onload = async (event) => {
@@ -536,7 +541,6 @@ export function Editor() {
                             const ctx = canvas.getContext('2d');
                             ctx?.drawImage(img, 0, 0, width, height);
                             const base64String = canvas.toDataURL('image/jpeg', 0.8);
-                            
                             setArtifact(prev => ({
                               ...prev,
                               inlineMedia: [...(prev.inlineMedia || []), base64String],
@@ -544,7 +548,28 @@ export function Editor() {
                             }));
                           };
                         };
+                      } else if (items[i].type === 'text/html') {
+                        htmlItem = items[i];
                       }
+                    }
+                    if (!hasImage && htmlItem) {
+                      e.preventDefault();
+                      htmlItem.getAsString((html) => {
+                        const turndownService = new TurndownService({
+                          headingStyle: 'atx',
+                          bulletListMarker: '-',
+                          hr: '---'
+                        });
+                        const markdown = turndownService.turndown(html);
+                        const textarea = e.target;
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const newValue = (artifact.bodyMarkdown || '').substring(0, start) + markdown + (artifact.bodyMarkdown || '').substring(end);
+                        setArtifact(prev => ({ ...prev, bodyMarkdown: newValue }));
+                        setTimeout(() => {
+                          textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
+                        }, 0);
+                      });
                     }
                   }}
                   rows={15}
