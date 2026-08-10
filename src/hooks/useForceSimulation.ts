@@ -24,40 +24,45 @@ export function useForceSimulation(
   useEffect(() => {
     if (!width || !height) return;
 
-    if (nodesRef.current.length === 0) {
-      nodesRef.current = artifacts.map((a, i) => {
-        // Deterministic pseudo-random based on index for initial scatter
-        const detX = ((i * 137.5) % 100) - 50;
-        const detY = ((i * 193.1) % 100) - 50;
-        return {
-          artifact: a,
-          id: a.id,
-          targetX: 0, targetY: 0, relevance: 1,
-          x: detX,
-          y: detY
-        };
-      });
-    }
+    const prev = new Map(nodesRef.current.map(n => [n.id, n]));
+    nodesRef.current = artifacts.map((a, i) => {
+      const existing = prev.get(a.id);
+      if (existing) {
+        existing.artifact = a;
+        return existing;
+      }
+      return {
+        artifact: a,
+        id: a.id,
+        targetX: 0, targetY: 0, relevance: 1,
+        x: ((i * 137.5) % 100) - 50,
+        y: ((i * 193.1) % 100) - 50,
+      };
+    });
 
-    nodesRef.current.forEach((n, i) => {
-      // Update artifact reference
-      n.artifact = artifacts[i];
+    nodesRef.current.forEach((n) => {
       n.relevance = n.artifact.searchRelevance ?? (searchQuery ? 0.05 : 1);
 
+      let tx = 0;
+      let ty = 0;
+
       if (viewMode === 'AUTHOR') {
-        n.targetX = n.artifact.authorLocation.x;
-        n.targetY = n.artifact.authorLocation.y;
+        tx = n.artifact.authorLocation?.x ?? 0;
+        ty = n.artifact.authorLocation?.y ?? 0;
       } else if (viewMode === 'MACHINE') {
-        n.targetX = n.artifact.machineLocation.x;
-        n.targetY = n.artifact.machineLocation.y;
+        tx = n.artifact.machineLocation?.x ?? 0;
+        ty = n.artifact.machineLocation?.y ?? 0;
       } else if (viewMode === 'VISUAL') {
-        n.targetX = n.artifact.visualLocation?.x || 0;
-        n.targetY = n.artifact.visualLocation?.y || 0;
+        tx = n.artifact.visualLocation?.x || 0;
+        ty = n.artifact.visualLocation?.y || 0;
       } else {
         // MISREAD
-        n.targetX = (n.artifact.authorLocation.x + n.artifact.machineLocation.x) / 2;
-        n.targetY = (n.artifact.authorLocation.y + n.artifact.machineLocation.y) / 2;
+        tx = ((n.artifact.authorLocation?.x ?? 0) + (n.artifact.machineLocation?.x ?? 0)) / 2;
+        ty = ((n.artifact.authorLocation?.y ?? 0) + (n.artifact.machineLocation?.y ?? 0)) / 2;
       }
+
+      n.targetX = isNaN(tx) ? 0 : tx;
+      n.targetY = isNaN(ty) ? 0 : ty;
 
       if (searchQuery) {
         if (n.relevance > 0.6) {
@@ -68,6 +73,11 @@ export function useForceSimulation(
             n.targetY *= 1.8;
         }
       }
+
+      if (isNaN(n.x)) n.x = 0;
+      if (isNaN(n.y)) n.y = 0;
+      if (isNaN(n.vx!)) n.vx = 0;
+      if (isNaN(n.vy!)) n.vy = 0;
     });
 
     if (!simRef.current) {
@@ -86,10 +96,10 @@ export function useForceSimulation(
     sim.force('x', d3.forceX<SimNode>(d => d.targetX).strength(d => (searchQuery && d.relevance > 0.6 ? 0.1 : 0.04)))
        .force('y', d3.forceY<SimNode>(d => d.targetY).strength(d => (searchQuery && d.relevance > 0.6 ? 0.1 : 0.04)))
        .force('collide', d3.forceCollide<SimNode>().radius(d => {
-            if (searchQuery && d.relevance > 0.6) return 140; // Expand relevant
-            if (searchQuery && d.relevance <= 0.6) return 40;  // Compress distant
-            return 90; // Default spacing
-        }).iterations(3));
+            const w = (searchQuery && d.relevance <= 0.6) ? 140 : 240;
+            const h = (searchQuery && d.relevance <= 0.6) ? 120 : 300;
+            return Math.hypot(w, h) / 2 + 12;   // half-diagonal + margin
+        }).iterations(4));
        
     sim.alpha(1).restart();
 

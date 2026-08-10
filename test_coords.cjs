@@ -9,9 +9,9 @@ const app = initializeApp({
 const db = getFirestore(app, "ai-studio-latentaffairs-e0a53ccd-a805-44a7-a9c4-952e0d7539f9");
 async function run() {
   const snap = await getDocs(query(collection(db, 'artifacts')));
-  const results = [];
-  snap.forEach((doc) => { results.push({id: doc.id, title: doc.data().title}); });
-  console.log(results);
+  snap.forEach((doc) => { 
+    console.log(doc.id, doc.data().authorCoordinate, doc.data().machineCoordinate); 
+  });
   process.exit(0);
 }
 run();

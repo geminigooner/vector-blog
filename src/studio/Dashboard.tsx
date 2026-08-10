@@ -33,8 +33,13 @@ export function Dashboard() {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this artifact? This cannot be undone.')) {
-      await deleteArtifact(id);
-      await loadData();
+      try {
+        await deleteArtifact(id);
+        await loadData();
+      } catch (err: any) {
+        console.error("Delete failed", err);
+        alert("Delete failed: " + err.message);
+      }
     }
   };
 

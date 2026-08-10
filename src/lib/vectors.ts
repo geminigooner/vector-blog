@@ -3,10 +3,18 @@ import { db } from './firebase';
 
 export async function embedArtifact(artifact: any): Promise<boolean> {
   try {
+    const payload = {
+      title: artifact.title,
+      type: artifact.type,
+      authorIntent: artifact.authorIntent,
+      bodyMarkdown: (artifact.bodyMarkdown || '')
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')   // robustly strip image refs
+        .slice(0, 8000),
+    };
     const res = await fetch('/api/embed', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ artifact })
+      body: JSON.stringify({ artifact: payload })
     });
     if (!res.ok) return false;
     const data = await res.json();

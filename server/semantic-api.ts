@@ -97,15 +97,13 @@ semanticRouter.post('/parse-pdf', express.json({ limit: '10mb' }), async (req, r
   try {
     let pdfBuffer: Buffer;
 
-    if (Buffer.isBuffer(req.body)) {
-      pdfBuffer = req.body;
-    } else if (req.body.downloadUrl) {
+    if (req.body.downloadUrl) {
       const fetchRes = await fetch(req.body.downloadUrl);
       if (!fetchRes.ok) throw new Error("Failed to fetch PDF from storage");
       const arrayBuffer = await fetchRes.arrayBuffer();
       pdfBuffer = Buffer.from(arrayBuffer);
     } else {
-      return res.status(400).json({ error: 'Missing downloadUrl or PDF body' });
+      return res.status(400).json({ error: 'Missing downloadUrl' });
     }
     
     const pdfBase64 = pdfBuffer.toString('base64');
@@ -118,13 +116,13 @@ Please follow these formatting rules exactly:
 - Preserve bold and italic text when possible.
 - Convert lists into Markdown lists, using the '✦' character as the bullet symbol.
 - Detect tables and convert them into Markdown tables where possible.
-- For images or figures, insert a placeholder like \`![Figure from PDF]()\` or describe it.
+- For images or figures, insert a placeholder like \`[Figure from PDF]\` or describe it.
 - Preserve blockquotes / pull quotes using '> '.
 - If formatting cannot be confidently preserved, prefer clean readable Markdown over trying to reproduce the layout exactly.
 - Do NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks, just return the raw text.`;
 
     const response = await getAi().models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-2.5-flash',
       contents: [
         {
           role: 'user',
@@ -141,7 +139,7 @@ Please follow these formatting rules exactly:
       ]
     });
     
-    let text = response.text || '';
+    let text = response.text || ''; text = text.trim();
     if (text.startsWith('\`\`\`markdown\n')) {
       text = text.substring(12);
       if (text.endsWith('\`\`\`\n')) {
@@ -158,7 +156,7 @@ Please follow these formatting rules exactly:
       }
     }
 
-    res.json({ markdown: text });
+    text = text.trim(); res.json({ markdown: text });
   } catch (err: any) {
     console.error("PDF Parsing error:", err);
     res.status(500).json({ error: err.message });

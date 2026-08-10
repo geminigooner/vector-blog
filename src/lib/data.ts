@@ -12,14 +12,25 @@ export function mapFirebaseToArtifact(fa: FirebaseArtifact): Artifact {
     date: new Date(fa.publishedAt || fa.createdAt || Date.now()).toLocaleDateString(),
     type: fa.type,
     excerpt: fa.excerpt,
-    bodyMarkdown: fa.bodyMarkdown || fa.markdownBody,
+    bodyMarkdown: fa.bodyMarkdown || (fa as any).markdownBody || '',
     inlineMedia: fa.inlineMedia,
     coverMedia: fa.coverMedia,
     authorIntent: fa.authorIntent || 'Unsorted',
     machineCluster: fa.machineCluster || 'Unsorted',
-    authorLocation: fa.authorCoordinate || { x: 0, y: 0 },
-    machineLocation: fa.machineCoordinate || { x: 0, y: 0 },
-    trace: fa.traceMetadata,
+    authorLocation: fa.authorCoordinate || (fa.id ? generateCoordinate(fa.id + 'author') : { x: 0, y: 0 }),
+    machineLocation: fa.machineCoordinate || (fa.id ? generateCoordinate(fa.id + 'machine') : { x: 0, y: 0 }),
+    trace: fa.traceMetadata ?? {
+      artifactID: fa.id,
+      contentType: fa.type,
+      datePublished: new Date(fa.publishedAt || fa.createdAt || Date.now()).toISOString(),
+      authorIntent: fa.authorIntent || '',
+      machineCluster: fa.machineCluster || '',
+      machineCoordinate: fa.machineCoordinate || { x: 0, y: 0 },
+      authorCoordinate: fa.authorCoordinate || { x: 0, y: 0 },
+      semanticDisplacement: 0,
+      nearestMachineNeighbors: [],
+      nearestAuthorNeighbors: [],
+    },
     status: fa.status,
   };
 }
@@ -89,8 +100,9 @@ export async function getStudioArtifacts(): Promise<FirebaseArtifact[]> {
     // Sort descending by updated at
     results.sort((a, b) => b.updatedAt - a.updatedAt);
     return results;
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to load studio artifacts", err);
+    alert("Failed to load artifacts: " + err.message);
     return [];
   }
 }

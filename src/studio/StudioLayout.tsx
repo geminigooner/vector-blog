@@ -3,7 +3,7 @@ import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, Home, PenTool, Image as ImageIcon, ExternalLink } from 'lucide-react';
 
-export function StudioLayout() {
+export function StudioLayout({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuth();
   const location = useLocation();
 
@@ -70,7 +70,7 @@ export function StudioLayout() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-        <Outlet />
+        {children}
       </div>
     </div>
   );

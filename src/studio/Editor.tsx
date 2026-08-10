@@ -48,6 +48,7 @@ export function Editor() {
   const [loading, setLoading] = useState(id !== undefined && id !== 'new');
   const [saving, setSaving] = useState(false);
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ text: string, url: string } | null>(null);
   const [preview, setPreview] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
@@ -60,29 +61,16 @@ export function Editor() {
           
           // Cleanup legacy base64 in bodyMarkdown
           if (data.bodyMarkdown && data.bodyMarkdown.includes('data:')) {
-            let updatedBody = data.bodyMarkdown;
             const inlineMedia = data.inlineMedia || [];
-            
-            // Extract all data URIs
             const regex = /!\[(.*?)\]\((data:[^)]+)\)/g;
-            let match;
-            while ((match = regex.exec(data.bodyMarkdown)) !== null) {
-              const alt = match[1];
-              const dataUri = match[2];
-              
-              // Check if already in inlineMedia
-              let idx = inlineMedia.indexOf(dataUri);
+            data.bodyMarkdown = data.bodyMarkdown.replace(regex, (_full, alt, uri) => {
+              let idx = inlineMedia.indexOf(uri);
               if (idx === -1) {
                 idx = inlineMedia.length;
-                inlineMedia.push(dataUri);
+                inlineMedia.push(uri);
               }
-              
-              // Replace in body
-              const replacement = `![${alt}](inline:${idx})`;
-              updatedBody = updatedBody.replace(match[0], replacement);
-            }
-            
-            data.bodyMarkdown = updatedBody;
+              return `![${alt}](inline:${idx})`;
+            });
             data.inlineMedia = inlineMedia;
           }
           
@@ -146,14 +134,7 @@ export function Editor() {
       
       const data = await res.json();
       
-      const newMarkdown = (artifact.bodyMarkdown ? artifact.bodyMarkdown + '\n\n---\n\n' : '') 
-        + data.markdown
-        + (downloadUrl ? `\n\n[Download original PDF](${downloadUrl})` : '');
-        
-      setArtifact(prev => ({
-        ...prev,
-        bodyMarkdown: newMarkdown
-      }));
+      setPdfPreview({ text: data.markdown, url: downloadUrl });
       
     } catch (err: any) {
       console.error(err);
@@ -164,18 +145,42 @@ export function Editor() {
     }
   };
 
+  const handleAppendPdf = () => {
+    if (!pdfPreview) return;
+    const newMarkdown = (artifact.bodyMarkdown ? artifact.bodyMarkdown + '\n\n---\n\n' : '') 
+      + pdfPreview.text
+      + (pdfPreview.url ? `\n\n[Download original PDF](${pdfPreview.url})` : '');
+        
+    setArtifact(prev => ({
+      ...prev,
+      bodyMarkdown: newMarkdown
+    }));
+    setPdfPreview(null);
+  };
+
   const handleDelete = async () => {
     if (!artifact.id || !window.confirm('Are you sure you want to delete this artifact? This cannot be undone.')) return;
     setSaving(true);
     try {
       await deleteArtifact(artifact.id);
       navigate('/studio');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setSaveStatus('error');
       setSaveMessage('Failed to delete');
+      alert("Delete failed: " + err.message);
       setSaving(false);
     }
+  };
+
+  const persistDataUri = async (dataUri: string, artifactId: string): Promise<string> => {
+    const res = await fetch(dataUri);
+    const blob = await res.blob();
+    const ext = (blob.type.split('/')[1] || 'bin').split(';')[0];
+    const path = `inline/${artifactId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const sref = ref(storage, path);
+    await uploadBytes(sref, blob);
+    return await getDownloadURL(sref);
   };
 
   const handleSave = async (status: 'draft' | 'published') => {
@@ -216,20 +221,30 @@ export function Editor() {
     
     if (cleanedBody.includes('data:')) {
       const regex = /!\[(.*?)\]\((data:[^)]+)\)/g;
-      let match;
-      while ((match = regex.exec(cleanedBody)) !== null) {
-        const alt = match[1];
+      const matches = [...cleanedBody.matchAll(regex)];
+      
+      const uriMap = new Map<string, string>();
+      for (const match of matches) {
         const dataUri = match[2];
-        
-        let idx = inlineMedia.indexOf(dataUri);
+        if (dataUri.startsWith('data:') && !uriMap.has(dataUri)) {
+            try {
+                const url = await persistDataUri(dataUri, baseArt.id!);
+                uriMap.set(dataUri, url);
+            } catch (err) {
+                console.error("Failed to persist data URI:", err);
+            }
+        }
+      }
+      
+      cleanedBody = cleanedBody.replace(regex, (_full, alt, uri) => {
+        const url = uriMap.get(uri) || uri;
+        let idx = inlineMedia.indexOf(url);
         if (idx === -1) {
           idx = inlineMedia.length;
-          inlineMedia.push(dataUri);
+          inlineMedia.push(url);
         }
-        
-        const replacement = `![${alt}](inline:${idx})`;
-        cleanedBody = cleanedBody.replace(match[0], replacement);
-      }
+        return `![${alt}](inline:${idx})`;
+      });
     }
     baseArt.bodyMarkdown = cleanedBody;
     baseArt.inlineMedia = inlineMedia;
@@ -249,6 +264,7 @@ export function Editor() {
         } else {
           setSaveStatus('error');
           setSaveMessage('Published but embedding failed');
+          alert("Published, but semantic embedding failed! This post will lack a vector representation.");
         }
         let img = firstImageDataUrl(finalArt.bodyMarkdown) || finalArt.coverMedia;
         if (!img && finalArt.inlineMedia) {
@@ -273,16 +289,54 @@ export function Editor() {
       console.error(err);
       setSaveStatus('error');
       setSaveMessage('Failed to save artifact');
+      alert("Save failed: " + err.message);
     } finally {
       setSaving(false);
-      setTimeout(() => setSaveStatus('idle'), 4000);
+      setTimeout(() => {
+        setSaveStatus(prev => prev === 'error' ? 'error' : 'idle');
+      }, 4000);
     }
   };
 
   if (loading) return <div className="p-12 text-silver font-mono">Loading...</div>;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      {pdfPreview && (
+        <div className="absolute inset-0 bg-void/90 z-50 flex items-center justify-center p-8 backdrop-blur-sm">
+          <div className="bg-onyx border border-silver/30 w-full max-w-3xl flex flex-col max-h-full">
+            <div className="border-b border-silver/20 p-4 flex justify-between items-center bg-onyx/50">
+              <h3 className="text-ivory font-mono text-sm tracking-widest flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Parsed PDF Preview
+              </h3>
+              <div className="text-silver/70 text-xs font-mono">
+                {pdfPreview.text.length.toLocaleString()} chars
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-6 bg-[#0a0a0a]">
+              <pre className="font-mono text-[10px] text-silver/80 whitespace-pre-wrap">
+                {pdfPreview.text}
+              </pre>
+            </div>
+            <div className="border-t border-silver/20 p-4 flex justify-end gap-4 bg-onyx/50">
+              <button 
+                onClick={() => setPdfPreview(null)}
+                className="px-4 py-2 text-xs font-mono tracking-widest uppercase text-silver hover:text-ivory transition-colors"
+              >
+                Discard
+              </button>
+              <button 
+                onClick={handleAppendPdf}
+                className="px-4 py-2 bg-ivory text-void hover:bg-white text-xs font-mono tracking-widest uppercase transition-colors"
+              >
+                Append to Document
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Editor Header */}
       <div className="flex-none bg-carbon border-b border-silver/10 p-4 flex justify-between items-center sticky top-0 z-10">
         <div className="flex items-center gap-4">
@@ -632,7 +686,7 @@ export function Editor() {
                           hr: '---'
                         });
                         const markdown = turndownService.turndown(html);
-                        const textarea = e.target;
+                        const textarea = e.target as HTMLTextAreaElement;
                         const start = textarea.selectionStart;
                         const end = textarea.selectionEnd;
                         const newValue = (artifact.bodyMarkdown || '').substring(0, start) + markdown + (artifact.bodyMarkdown || '').substring(end);

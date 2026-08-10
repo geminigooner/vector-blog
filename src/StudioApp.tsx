@@ -6,6 +6,7 @@ import { Login } from './studio/Login';
 import { Dashboard } from './studio/Dashboard';
 import { Editor } from './studio/Editor';
 import { Media } from './studio/Media';
+import { Migration } from './pages/Migration';
 
 export function StudioApp() {
   const { user, isOwner, loading } = useAuth();
@@ -25,6 +26,7 @@ export function StudioApp() {
         <Route path="/editor/new" element={<Editor />} />
         <Route path="/editor/:id" element={<Editor />} />
         <Route path="/media" element={<Media />} />
+        <Route path="/migrate" element={<Migration />} />
         <Route path="*" element={<Navigate to="/studio" replace />} />
       </Routes>
     </StudioLayout>

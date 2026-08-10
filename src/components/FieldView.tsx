@@ -15,6 +15,16 @@ interface FieldViewProps {
   selectedId: string | null;
 }
 
+// clip a center-to-center segment at the target card's rect
+function trimToRect(x1: number, y1: number, x2: number, y2: number, cx: number, cy: number, w: number, h: number) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const hw = w / 2, hh = h / 2;
+  const tx = dx ? hw / Math.abs(dx) : Infinity;
+  const ty = dy ? hh / Math.abs(dy) : Infinity;
+  const t = Math.min(tx, ty, 1); // fraction of the segment inside the card
+  return { x: cx - dx * t, y: cy - dy * t };
+}
+
 export function FieldView({ artifacts, viewMode, queryVector, onSelect, selectedId }: FieldViewProps) {
   const [ref, bounds] = useMeasure();
   const nodes = useForceSimulation(artifacts, viewMode, queryVector?.query || '', bounds.width, bounds.height);
@@ -65,42 +75,6 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
         className="absolute top-1/2 left-1/2"
         style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}
       >
-        {viewMode === 'MISREAD' && nodes.map(node => {
-          const isSelected = selectedId === node.id;
-          const showLine = isSelected || (!selectedId && (queryVector ? node.relevance > 0.6 : node.artifact.trace.semanticDisplacement > 100));
-          
-          if (!showLine) return null;
-          
-          return (
-            <svg key={`line-${node.id}`} className="absolute overflow-visible pointer-events-none" style={{ left: 0, top: 0, zIndex: 0 }}>
-              <motion.line
-                x1={node.artifact.authorLocation.x}
-                y1={node.artifact.authorLocation.y}
-                x2={node.artifact.machineLocation.x}
-                y2={node.artifact.machineLocation.y}
-                stroke="var(--color-silver)"
-                strokeWidth={1}
-                strokeOpacity={isSelected ? 0.6 : 0.3}
-                strokeDasharray="4 4"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 1.5, ease: "easeInOut" }}
-              />
-              {isSelected && (
-                <>
-                  <motion.circle cx={node.artifact.authorLocation.x} cy={node.artifact.authorLocation.y} r={3} fill="var(--color-ivory)" />
-                  <motion.circle cx={node.artifact.machineLocation.x} cy={node.artifact.machineLocation.y} r={3} fill="var(--color-silver)" />
-                  <motion.text x={node.artifact.authorLocation.x + 8} y={node.artifact.authorLocation.y + 4} fill="var(--color-ivory)" fontSize={9} fontFamily="var(--font-mono)">
-                    author
-                  </motion.text>
-                  <motion.text x={node.artifact.machineLocation.x + 8} y={node.artifact.machineLocation.y + 4} fill="var(--color-silver)" fontSize={9} fontFamily="var(--font-mono)">
-                    machine
-                  </motion.text>
-                </>
-              )}
-            </svg>
-          );
-        })}
 
         <AnimatePresence>
           {queryVector && (
@@ -120,6 +94,7 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
         </AnimatePresence>
 
         {nodes.map(node => {
+          if (!node || !node.artifact) return null;
           const isSelected = selectedId === node.id;
           let isRelevant = queryVector ? node.relevance > 0.6 : true;
           let opacity = queryVector ? Math.max(0.3, node.relevance) : (selectedId && !isSelected ? 0.3 : 1);
@@ -143,8 +118,8 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                 width: isRelevant ? 240 : 140,
               }}
               animate={{
-                x: node.x,
-                y: node.y,
+                x: node.x || 0,
+                y: node.y || 0,
                 scale,
                 opacity,
               }}
@@ -181,7 +156,7 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                       <img 
                         src={getFirstImage(node.artifact)} 
                         alt="Thumbnail" 
-                        loading="lazy"
+                        loading="l(a?.y ?? 0)"
                         className="w-full h-full object-cover" 
                         draggable={false}
                       />
