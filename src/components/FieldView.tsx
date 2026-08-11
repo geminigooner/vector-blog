@@ -109,11 +109,7 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
           return (
             <motion.div
               key={node.id}
-              className={cn(
-                "absolute -translate-x-1/2 -translate-y-1/2 p-4 transition-colors z-10",
-                "bg-graphite/90 backdrop-blur-sm border border-silver/20 hover:border-ivory/50 cursor-pointer shadow-2xl",
-                !isRelevant && "pointer-events-none"
-              )}
+              className="absolute z-10"
               style={{
                 width: isRelevant ? 240 : 140,
               }}
@@ -124,12 +120,19 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                 opacity,
               }}
               transition={{ type: "spring", stiffness: 80, damping: 20 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(node.artifact);
-              }}
             >
-              <div className="flex flex-col gap-2">
+              <div
+                className={cn(
+                  "absolute -translate-x-1/2 -translate-y-1/2 p-4 transition-colors w-full",
+                  "bg-graphite/90 backdrop-blur-sm border border-silver/20 hover:border-ivory/50 cursor-pointer shadow-2xl",
+                  !isRelevant && "pointer-events-none"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(node.artifact);
+                }}
+              >
+                <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between border-b border-silver/10 pb-2 mb-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] text-silver/60 font-mono">{node.artifact.id.replace('art-', '#')}</span>
@@ -156,7 +159,7 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                       <img 
                         src={getFirstImage(node.artifact)} 
                         alt="Thumbnail" 
-                        loading="l(a?.y ?? 0)"
+                        loading="lazy"
                         className="w-full h-full object-cover" 
                         draggable={false}
                       />
@@ -178,6 +181,7 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                     {node.artifact.excerpt}
                   </p>
                 )}
+              </div>
               </div>
             </motion.div>
           );

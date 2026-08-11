@@ -50,8 +50,23 @@ export function Editor() {
   const [pdfUploading, setPdfUploading] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ text: string, url: string } | null>(null);
   const [preview, setPreview] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error' | 'autosaving'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
+
+  // Auto-save logic
+  useEffect(() => {
+    // Only auto-save if we have an ID and it's not a new draft
+    if (loading || id === 'new') return;
+    
+    const handler = setTimeout(() => {
+      // Only auto-save if status is draft (don't want to accidentally publish)
+      if (artifact.status === 'draft') {
+        handleSave('draft');
+      }
+    }, 5000); // Wait 5 seconds after last edit to auto-save
+
+    return () => clearTimeout(handler);
+  }, [artifact.bodyMarkdown, artifact.title, artifact.slug, artifact.excerpt, artifact.type, artifact.authorCategory, artifact.authorIntent]);
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -186,7 +201,7 @@ export function Editor() {
   const handleSave = async (status: 'draft' | 'published') => {
     if (!user) return;
     setSaving(true);
-    setSaveStatus('saving');
+    setSaveStatus(status === 'draft' ? 'autosaving' : 'saving');
     
     // Auto-generate slug and coordinates if missing
     let finalSlug = artifact.slug || artifact.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -303,7 +318,7 @@ export function Editor() {
   return (
     <div className="flex flex-col h-full relative">
       {pdfPreview && (
-        <div className="absolute inset-0 bg-void/90 z-50 flex items-center justify-center p-8 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-void/95 z-50 flex items-center justify-center p-3 md:p-8 backdrop-blur-sm">
           <div className="bg-onyx border border-silver/30 w-full max-w-3xl flex flex-col max-h-full">
             <div className="border-b border-silver/20 p-4 flex justify-between items-center bg-onyx/50">
               <h3 className="text-ivory font-mono text-sm tracking-widest flex items-center gap-2">
@@ -315,7 +330,7 @@ export function Editor() {
               </div>
             </div>
             <div className="flex-1 overflow-auto p-6 bg-[#0a0a0a]">
-              <pre className="font-mono text-[10px] text-silver/80 whitespace-pre-wrap">
+              <pre className="font-mono text-[11px] md:text-xs leading-relaxed text-ivory/75 whitespace-pre-wrap break-words">
                 {pdfPreview.text}
               </pre>
             </div>
@@ -351,7 +366,7 @@ export function Editor() {
         
         {saveStatus !== 'idle' && (
           <div className={`absolute left-1/2 -translate-x-1/2 font-mono text-[10px] uppercase tracking-widest px-4 py-1 flex items-center transition-opacity ${saveStatus === 'success' ? 'text-indicator-green bg-indicator-green/10' : saveStatus === 'error' ? 'text-rose bg-rose/10' : 'text-silver bg-silver/10'}`}>
-            {saveStatus === 'saving' ? 'SAVING...' : saveMessage}
+            {saveStatus === 'saving' ? 'SAVING...' : saveStatus === 'autosaving' ? 'AUTO-SAVING...' : saveMessage}
           </div>
         )}
 
