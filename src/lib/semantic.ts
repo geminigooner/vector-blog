@@ -135,6 +135,50 @@ export function authorNeighbors(id: string, tagsById: Record<string, string[]>, 
     .slice(0, k);
 }
 
+const AUTHOR_RADIUS = 400;
+
+function seedHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+// AUTHOR space: posts cluster by the category you assigned them, spread within
+// that cluster by their tags. Same +/-400 scale as the machine projection so
+// the two coordinates are directly comparable.
+export function authorLayout(
+  posts: any[],
+  categoryById: Record<string, string>,
+  tagsById: Record<string, string[]>
+): Record<string, { x: number; y: number }> {
+  const categories = Array.from(
+    new Set(posts.map(p => categoryById[p.id] || 'Unsorted'))
+  ).sort();
+
+  const out: Record<string, { x: number; y: number }> = {};
+
+  for (const post of posts) {
+    const cat = categoryById[post.id] || 'Unsorted';
+    const idx = Math.max(categories.indexOf(cat), 0);
+    const angle = (idx / Math.max(categories.length, 1)) * Math.PI * 2;
+    const clusterR = categories.length <= 1 ? 0 : AUTHOR_RADIUS * 0.6;
+
+    const seed = seedHash((tagsById[post.id] || []).join(',') + '|' + post.id);
+    const jitterAngle = (seed % 3600) / 3600 * Math.PI * 2;
+    const jitterR = ((seed >> 8) % 1000) / 1000 * AUTHOR_RADIUS * 0.32;
+
+    out[post.id] = {
+      x: Math.cos(angle) * clusterR + Math.cos(jitterAngle) * jitterR,
+      y: Math.sin(angle) * clusterR + Math.sin(jitterAngle) * jitterR,
+    };
+  }
+
+  return out;
+}
+
 export function buildAtlas(
   posts: any[],
   vecs: Record<string, Vec>,
@@ -147,6 +191,8 @@ export function buildAtlas(
   
   const visualPostVecs = posts.map(p => visualVecs[p.id]).filter(Boolean);
   const visualProjection = fitProjection(visualPostVecs);
+  
+  const authorLocations = authorLayout(posts, categoryById, tagsById);
   
   const artifacts = posts.map(post => {
     let machineLocation = { x: 0, y: 0 };
@@ -161,8 +207,8 @@ export function buildAtlas(
       visualLocation = project(visualVecs[post.id], visualProjection);
     }
     
-    // authorLocation could be simple cluster packing or physics based on categories/tags.
-    let authorLocation = post.authorLocation || { x: 0, y: 0 }; 
+    // authorLocation comes from category clustering + tag spread (see authorLayout).
+    let authorLocation = authorLocations[post.id] || post.authorLocation || { x: 0, y: 0 }; 
 
     const nearestMachineNeighbors = machineNeighbors(post.id, vecs, 3);
     const nearestAuthorNeighbors = authorNeighbors(post.id, tagsById, 3);
