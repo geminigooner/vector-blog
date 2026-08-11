@@ -5,6 +5,7 @@ import { Artifact, ViewMode, SearchVector } from '../types';
 import { getFirstImage } from '../lib/data';
 import { useForceSimulation } from '../hooks/useForceSimulation';
 import { cn } from '../utils/cn';
+import { getCardMetrics, isCompactViewport } from '../lib/cardMetrics';
 import { LocateFixed } from 'lucide-react';
 
 interface FieldViewProps {
@@ -28,6 +29,7 @@ function trimToRect(x1: number, y1: number, x2: number, y2: number, cx: number, 
 export function FieldView({ artifacts, viewMode, queryVector, onSelect, selectedId }: FieldViewProps) {
   const [ref, bounds] = useMeasure();
   const nodes = useForceSimulation(artifacts, viewMode, queryVector?.query || '', bounds.width, bounds.height);
+  const compact = isCompactViewport(bounds.width);
   
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
@@ -104,7 +106,8 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
             opacity = 0.15;
           }
 
-          const scale = isSelected ? 1.05 : (queryVector ? Math.max(0.7, node.relevance) : 1);
+          const baseScale = compact ? 0.625 : 1;
+          const scale = (isSelected ? 1.05 : (queryVector ? Math.max(0.7, node.relevance) : 1)) * baseScale;
           
           return (
             <motion.div
@@ -123,7 +126,7 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
             >
               <div
                 className={cn(
-                  "absolute -translate-x-1/2 -translate-y-1/2 p-4 transition-colors w-full",
+                  "absolute -translate-x-1/2 -translate-y-1/2 transition-colors w-full p-4",
                   "bg-graphite/90 backdrop-blur-sm border border-silver/20 hover:border-ivory/50 cursor-pointer shadow-2xl",
                   !isRelevant && "pointer-events-none"
                 )}
@@ -149,7 +152,7 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                   {isRelevant && node.artifact.type === 'Essay' && <div className="w-1.5 h-1.5 bg-rose" />}
                 </div>                
                 {isRelevant && getFirstImage(node.artifact) && (
-                  <div className="w-full aspect-square mt-2 mb-2 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm">
+                  <div className="w-full mt-2 mb-2 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm aspect-square">
                     {getFirstImage(node.artifact)?.startsWith('data:video/') ? (
                       <video 
                         src={getFirstImage(node.artifact)} 

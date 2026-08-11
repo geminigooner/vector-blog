@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3-force';
 import { Artifact, ViewMode } from '../types';
+import { getCardMetrics } from '../lib/cardMetrics';
 
 export interface SimNode extends d3.SimulationNodeDatum {
   artifact: Artifact;
@@ -97,9 +98,9 @@ export function useForceSimulation(
        .force('y', d3.forceY<SimNode>(d => d.targetY).strength(d => (searchQuery && d.relevance > 0.6 ? 0.2 : 0.15)))
        // Removed charge to prevent unbounded repulsion
        .force('collide', d3.forceCollide<SimNode>().radius(d => {
-            const w = (searchQuery && d.relevance <= 0.6) ? 140 : 240;
-            const h = (searchQuery && d.relevance <= 0.6) ? 120 : 300;
-            return Math.min(w, h) / 2 + 8;
+            const relevant = !(searchQuery && d.relevance <= 0.6);
+            const { width: w, height: h } = getCardMetrics(width, relevant);
+            return Math.hypot(w, h) / 2 + 8;
         }).iterations(4));
        
     sim.alpha(1).restart();
