@@ -122,7 +122,7 @@ Please follow these formatting rules exactly:
 - Do NOT wrap the output in \`\`\`markdown ... \`\`\` code blocks, just return the raw text.`;
 
     const response = await getAi().models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: [
         {
           role: 'user',
