@@ -632,7 +632,7 @@ export function Editor() {
                     </label>
                   )}
                   </div>
-                  <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1">
+                  <div className="flex flex-wrap gap-1 pb-1">
                     {['#', '##', '###', '**', '_', '[]()', '>', '-', '1.', '---', '![alt]()', '✦', '✧', '✺', '※', '—'].map(char => (
                       <button 
                         key={char} 

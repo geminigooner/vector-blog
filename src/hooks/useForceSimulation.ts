@@ -82,7 +82,7 @@ export function useForceSimulation(
 
     if (!simRef.current) {
       simRef.current = d3.forceSimulation<SimNode>(nodesRef.current)
-        .force('charge', d3.forceManyBody().strength(-20))
+        // Removed initial charge force
         .alphaTarget(0.002) // minimal drift
         .on('tick', () => {
           setNodes([...nodesRef.current]);
@@ -93,12 +93,13 @@ export function useForceSimulation(
     // Update nodes data in simulation in case artifacts changed
     sim.nodes(nodesRef.current);
     
-    sim.force('x', d3.forceX<SimNode>(d => d.targetX).strength(d => (searchQuery && d.relevance > 0.6 ? 0.1 : 0.04)))
-       .force('y', d3.forceY<SimNode>(d => d.targetY).strength(d => (searchQuery && d.relevance > 0.6 ? 0.1 : 0.04)))
+    sim.force('x', d3.forceX<SimNode>(d => d.targetX).strength(d => (searchQuery && d.relevance > 0.6 ? 0.2 : 0.15)))
+       .force('y', d3.forceY<SimNode>(d => d.targetY).strength(d => (searchQuery && d.relevance > 0.6 ? 0.2 : 0.15)))
+       // Removed charge to prevent unbounded repulsion
        .force('collide', d3.forceCollide<SimNode>().radius(d => {
             const w = (searchQuery && d.relevance <= 0.6) ? 140 : 240;
             const h = (searchQuery && d.relevance <= 0.6) ? 120 : 300;
-            return Math.hypot(w, h) / 2 + 12;   // half-diagonal + margin
+            return Math.min(w, h) / 2 + 8;
         }).iterations(4));
        
     sim.alpha(1).restart();

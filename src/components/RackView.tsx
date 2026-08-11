@@ -96,14 +96,12 @@ export function RackView({ artifacts, viewMode, queryVector, onSelect, selectedI
 
                 {/* Content column */}
                 <div className="flex-1 min-w-0">
-                  {artifact.title && (
-                    <h3 className={cn(
-                      "font-serif leading-tight text-ivory truncate md:whitespace-normal",
-                      isRelevant ? "text-lg md:text-xl" : "text-sm text-ivory/70"
-                    )}>
-                      {artifact.title}
-                    </h3>
-                  )}
+                  <h3 className={cn(
+                    "font-serif leading-tight text-ivory truncate md:whitespace-normal",
+                    isRelevant ? "text-lg md:text-xl" : "text-sm text-ivory/70"
+                  )}>
+                    {artifact.title || 'Untitled Artifact'}
+                  </h3>
                   
                   {isRelevant && artifact.excerpt && (
                     <p className="text-sm text-silver mt-2 leading-relaxed line-clamp-2 md:line-clamp-none max-w-2xl">

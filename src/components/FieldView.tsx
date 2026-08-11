@@ -167,12 +167,12 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
                   </div>
                 )}
                 
-                {node.artifact.title && (
+                {(node.artifact.title || node.artifact.excerpt || !getFirstImage(node.artifact)) && (
                   <h3 className={cn(
                     "font-serif leading-tight",
                     isRelevant ? "text-lg text-ivory" : "text-sm text-ivory/70 line-clamp-2"
                   )}>
-                    {node.artifact.title}
+                    {node.artifact.title || 'Untitled Artifact'}
                   </h3>
                 )}
                 
