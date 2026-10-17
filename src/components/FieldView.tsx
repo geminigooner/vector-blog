@@ -5,8 +5,11 @@ import { Artifact, ViewMode, SearchVector } from '../types';
 import { getFirstImage } from '../lib/data';
 import { useForceSimulation } from '../hooks/useForceSimulation';
 import { cn } from '../utils/cn';
-import { getCardMetrics, isCompactViewport } from '../lib/cardMetrics';
-import { LocateFixed } from 'lucide-react';
+import { isCompactViewport } from '../lib/cardMetrics';
+import { LocateFixed, Route } from 'lucide-react';
+import { SemanticDriftOverlay } from './SemanticDriftOverlay';
+import { MachineClusterLegend } from './MachineClusterLegend';
+import { getClusterInfo } from '../lib/clusterColors';
 
 interface FieldViewProps {
   artifacts: Artifact[];
@@ -32,8 +35,18 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
   const compact = isCompactViewport(bounds.width);
   
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [showDrift, setShowDrift] = useState(false);
+  const [activeCluster, setActiveCluster] = useState<string | null>(null);
+  const [hoveredCluster, setHoveredCluster] = useState<string | null>(null);
   const isDragging = useRef(false);
   const lastPan = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (viewMode !== 'MACHINE') {
+      setActiveCluster(null);
+      setHoveredCluster(null);
+    }
+  }, [viewMode]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDragging.current = true;
@@ -106,8 +119,22 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
             opacity = 0.15;
           }
 
+          const clusterKey = node.artifact.machineCluster || node.artifact.trace?.machineCluster || 'Unsorted';
+          const clusterInfo = getClusterInfo(clusterKey);
+          const isClusterHighlighted = viewMode === 'MACHINE' && (activeCluster === clusterKey || hoveredCluster === clusterKey);
+          const isClusterDimmed = viewMode === 'MACHINE' && (
+            (activeCluster && activeCluster !== clusterKey) ||
+            (hoveredCluster && !activeCluster && hoveredCluster !== clusterKey)
+          );
+
+          if (isClusterDimmed) {
+            opacity = Math.min(opacity, 0.2);
+          } else if (isClusterHighlighted) {
+            opacity = 1;
+          }
+
           const baseScale = compact ? 0.625 : 1;
-          const scale = (isSelected ? 1.05 : (queryVector ? Math.max(0.7, node.relevance) : 1)) * baseScale;
+          const scale = ((isSelected ? 1.05 : (queryVector ? Math.max(0.7, node.relevance) : 1)) + (isClusterHighlighted ? 0.04 : 0)) * baseScale;
           
           return (
             <motion.div
@@ -127,29 +154,58 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
               <div
                 className={cn(
                   "absolute -translate-x-1/2 -translate-y-1/2 transition-colors w-full p-4",
-                  "bg-graphite/90 backdrop-blur-sm border border-silver/20 hover:border-ivory/50 cursor-pointer shadow-2xl",
+                  "bg-graphite/90 backdrop-blur-sm border shadow-2xl cursor-pointer",
+                  isClusterHighlighted
+                    ? "border-ivory ring-1 ring-ivory/50"
+                    : "border-silver/20 hover:border-ivory/50",
                   !isRelevant && "pointer-events-none"
                 )}
+                style={
+                  isClusterHighlighted
+                    ? { borderColor: clusterInfo.color, boxShadow: `0 0 25px ${clusterInfo.color}50` }
+                    : undefined
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelect(node.artifact);
                 }}
               >
                 <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between border-b border-silver/10 pb-2 mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-silver/60 font-mono">{node.artifact.id.replace('art-', '#')}</span>
+                <div className="flex items-center justify-between border-b border-silver/10 pb-2 mb-1 gap-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[9px] text-silver/60 font-mono flex-shrink-0">{node.artifact.id.replace('art-', '#')}</span>
                     <span className={cn(
-                      "text-[9px] uppercase tracking-widest font-mono",
+                      "text-[9px] uppercase tracking-widest font-mono truncate",
                       isRelevant ? "text-silver" : "text-silver/50"
                     )}>
                       {node.artifact.type}
                     </span>
                   </div>
-                  {isRelevant && node.artifact.type === 'Demo' && <div className="w-1.5 h-1.5 bg-indicator-yellow" />}
-                  {isRelevant && node.artifact.type === 'Meme' && <div className="w-1.5 h-1.5 bg-indicator-green" />}
-                  {isRelevant && node.artifact.type === 'Project' && <div className="w-1.5 h-1.5 bg-indicator-blue" />}
-                  {isRelevant && node.artifact.type === 'Essay' && <div className="w-1.5 h-1.5 bg-rose" />}
+
+                  {viewMode === 'MACHINE' ? (
+                    <div 
+                      className="flex items-center gap-1.5 flex-shrink-0"
+                      title={`Cluster: ${clusterInfo.label} [${clusterKey}]`}
+                    >
+                      <span 
+                        className="w-2 h-2 flex-shrink-0 transition-transform"
+                        style={{
+                          backgroundColor: clusterInfo.color,
+                          boxShadow: `0 0 6px ${clusterInfo.color}`
+                        }}
+                      />
+                      <span className="text-[8px] font-mono uppercase tracking-wider text-silver/60 hidden sm:inline truncate max-w-[85px]">
+                        {clusterInfo.label}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      {isRelevant && node.artifact.type === 'Demo' && <div className="w-1.5 h-1.5 bg-indicator-yellow flex-shrink-0" />}
+                      {isRelevant && node.artifact.type === 'Meme' && <div className="w-1.5 h-1.5 bg-indicator-green flex-shrink-0" />}
+                      {isRelevant && node.artifact.type === 'Project' && <div className="w-1.5 h-1.5 bg-indicator-blue flex-shrink-0" />}
+                      {isRelevant && node.artifact.type === 'Essay' && <div className="w-1.5 h-1.5 bg-rose flex-shrink-0" />}
+                    </>
+                  )}
                 </div>                
                 {isRelevant && getFirstImage(node.artifact) && (
                   <div className="w-full mt-2 mb-2 bg-carbon/50 overflow-hidden border border-silver/10 rounded-sm aspect-square">
@@ -189,6 +245,52 @@ export function FieldView({ artifacts, viewMode, queryVector, onSelect, selected
             </motion.div>
           );
         })}
+      </div>
+
+      {/* Persistent Machine Mode Cluster Legend */}
+      {viewMode === 'MACHINE' && (
+        <MachineClusterLegend
+          artifacts={artifacts}
+          activeCluster={activeCluster}
+          onSelectCluster={setActiveCluster}
+          hoveredCluster={hoveredCluster}
+          onHoverCluster={setHoveredCluster}
+        />
+      )}
+
+      {/* Toggleable Semantic Drift Overlay & HUD */}
+      {showDrift && bounds.width > 0 && (
+        <SemanticDriftOverlay
+          nodes={nodes}
+          viewMode={viewMode}
+          onSelect={onSelect}
+          selectedId={selectedId}
+          compact={compact}
+          pan={pan}
+          width={bounds.width}
+          height={bounds.height}
+          onClose={() => setShowDrift(false)}
+        />
+      )}
+
+      {/* Floating Drift Toggle Button */}
+      <div 
+        className="absolute bottom-24 right-4 md:bottom-6 md:right-6 z-20 pointer-events-auto flex items-center gap-2 select-none"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setShowDrift((s) => !s)}
+          className={cn(
+            "px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest flex items-center gap-2 transition-all shadow-2xl backdrop-blur-md border",
+            showDrift
+              ? "bg-rose/20 border-rose text-rose font-semibold"
+              : "bg-graphite/90 border-silver/20 text-silver hover:text-ivory hover:border-silver/40"
+          )}
+          title="Toggle Semantic Drift Trajectory Overlay"
+        >
+          <Route className={cn("w-3.5 h-3.5", showDrift ? "text-rose animate-pulse" : "text-silver")} />
+          <span>DRIFT {showDrift ? 'ON' : 'OVERLAY'}</span>
+        </button>
       </div>
     </div>
   );

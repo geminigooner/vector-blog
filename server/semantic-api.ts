@@ -34,7 +34,14 @@ let ai: GoogleGenAI | null = null;
 function getAi() {
   if (!ai) {
     if (!process.env.GEMINI_API_KEY) throw new Error("Missing GEMINI_API_KEY");
-    ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
   return ai;
 }
@@ -194,7 +201,7 @@ semanticRouter.post('/embed-visual', async (req, res) => {
     const token = process.env.HF_TOKEN;
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) headers['x-goog-api-key'] = token;
 
     const spaceBase = hfUrl.replace(/\/$/, '');
     const initRes = await fetch(`${spaceBase}/gradio_api/call/embed`, {
@@ -251,7 +258,7 @@ semanticRouter.post('/reembed-visual-all', async (req, res) => {
     if (!hfUrl) throw new Error("Missing HF_SPACE_URL");
     const token = process.env.HF_TOKEN;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) headers['x-goog-api-key'] = token;
     const spaceBase = hfUrl.replace(/\/$/, '');
 
     for (const doc of snap.docs) {

@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { FirebaseArtifact, ContentType } from '../types';
 import { generateCoordinate, deleteArtifact } from '../lib/data';
-import { Save, Eye, EyeOff, UploadCloud, ChevronLeft, Trash, FileText, Loader2 } from 'lucide-react';
+import { Save, Eye, EyeOff, UploadCloud, ChevronLeft, Trash, FileText, Loader2, AlertCircle, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
 import Markdown from 'react-markdown';
@@ -52,6 +52,18 @@ export function Editor() {
   const [preview, setPreview] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error' | 'autosaving'>('idle');
   const [saveMessage, setSaveMessage] = useState('');
+  const [toast, setToast] = useState<{
+    type: 'error' | 'warning' | 'info' | 'success';
+    title: string;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Auto-save logic
   useEffect(() => {
@@ -117,12 +129,20 @@ export function Editor() {
     if (!e.target.files || !e.target.files.length) return;
     const file = e.target.files[0];
     if (file.type !== 'application/pdf') {
-      alert("Please upload a valid PDF file.");
+      setToast({
+        type: 'warning',
+        title: 'Invalid File Type',
+        message: 'Please upload a valid PDF file.'
+      });
       return;
     }
     
     if (file.size > 20 * 1024 * 1024) { // 20MB limit for Gemini API
-      alert("PDF file is too large. Max size is 20MB.");
+      setToast({
+        type: 'warning',
+        title: 'File Too Large',
+        message: 'PDF file is too large. Maximum supported size is 20MB.'
+      });
       return;
     }
     
@@ -150,10 +170,19 @@ export function Editor() {
       const data = await res.json();
       
       setPdfPreview({ text: data.markdown, url: downloadUrl });
+      setToast({
+        type: 'success',
+        title: 'PDF Parsed',
+        message: 'Document successfully parsed into clean Markdown. Review and append when ready.'
+      });
       
     } catch (err: any) {
-      console.error(err);
-      alert("Failed to parse PDF: " + err.message);
+      console.error("PDF upload/parse error:", err);
+      setToast({
+        type: 'error',
+        title: 'PDF Parsing Failed',
+        message: err.message || 'Unable to parse PDF document.'
+      });
     } finally {
       setPdfUploading(false);
       e.target.value = ''; // reset
@@ -183,7 +212,11 @@ export function Editor() {
       console.error(err);
       setSaveStatus('error');
       setSaveMessage('Failed to delete');
-      alert("Delete failed: " + err.message);
+      setToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: err.message || 'Could not delete artifact.'
+      });
       setSaving(false);
     }
   };
@@ -272,14 +305,18 @@ export function Editor() {
       setArtifact(finalArt);
       
       if (status === 'published') {
-        const ok = await embedArtifact(finalArt);
-        if (ok) {
+        const embedRes = await embedArtifact(finalArt);
+        if (embedRes.success) {
           setSaveStatus('success');
           setSaveMessage('Published & embedded successfully');
         } else {
           setSaveStatus('error');
-          setSaveMessage('Published but embedding failed');
-          alert("Published, but semantic embedding failed! This post will lack a vector representation.");
+          setSaveMessage('Published (embedding failed)');
+          setToast({
+            type: 'warning',
+            title: 'Vector Embedding Failed',
+            message: embedRes.error || 'Published successfully, but semantic embedding failed. This post will lack a vector representation until re-embedded.'
+          });
         }
         let img = firstImageDataUrl(finalArt.bodyMarkdown) || finalArt.coverMedia;
         if (!img && finalArt.inlineMedia) {
@@ -304,7 +341,11 @@ export function Editor() {
       console.error(err);
       setSaveStatus('error');
       setSaveMessage('Failed to save artifact');
-      alert("Save failed: " + err.message);
+      setToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: err.message || 'Failed to save artifact.'
+      });
     } finally {
       setSaving(false);
       setTimeout(() => {
@@ -562,7 +603,11 @@ export function Editor() {
                           
                           if (file.type.startsWith('video/')) {
                             if (file.size > 800000) {
-                              alert("Video file is too large. Max size is 800KB for base64 storage.");
+                              setToast({
+                                type: 'warning',
+                                title: 'Video Too Large',
+                                message: 'Video file is too large. Max size is 800KB for inline storage.'
+                              });
                               return;
                             }
                             const reader = new FileReader();
@@ -721,6 +766,31 @@ export function Editor() {
           )}
         </div>
       </div>
+
+      {/* Non-intrusive Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md w-full bg-graphite/95 border border-silver/30 shadow-2xl backdrop-blur-md p-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-start gap-3">
+            {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose shrink-0 mt-0.5" />}
+            {toast.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />}
+            {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-indicator-green shrink-0 mt-0.5" />}
+            <div className="flex-1 min-w-0">
+              <h4 className="font-mono text-xs uppercase tracking-wider text-ivory font-semibold mb-1">
+                {toast.title}
+              </h4>
+              <p className="font-mono text-[11px] text-silver/90 leading-relaxed break-words">
+                {toast.message}
+              </p>
+            </div>
+            <button 
+              onClick={() => setToast(null)}
+              className="text-silver hover:text-ivory transition-colors p-1 -mr-1 -mt-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

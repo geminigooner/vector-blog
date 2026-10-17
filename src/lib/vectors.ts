@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
-export async function embedArtifact(artifact: any): Promise<boolean> {
+export async function embedArtifact(artifact: any): Promise<{ success: boolean; error?: string }> {
   try {
     const payload = {
       title: artifact.title,
@@ -16,16 +16,19 @@ export async function embedArtifact(artifact: any): Promise<boolean> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ artifact: payload })
     });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      return { success: false, error: errData?.error || `Embedding failed with status ${res.status}` };
+    }
     const data = await res.json();
     if (data.values && data.values.length > 0) {
       await setDoc(doc(db, 'embeddings', artifact.id), { values: data.values });
-      return true;
+      return { success: true };
     }
-    return false;
-  } catch (err) {
-    console.error(err);
-    return false;
+    return { success: false, error: 'No vector values returned from embedding model' };
+  } catch (err: any) {
+    console.error("Embedding error:", err);
+    return { success: false, error: err.message || 'Network error during embedding' };
   }
 }
 

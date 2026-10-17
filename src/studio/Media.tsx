@@ -10,6 +10,8 @@ export function Media() {
   const [media, setMedia] = useState<MediaRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [statusBanner, setStatusBanner] = useState<string | null>(null);
 
   const loadMedia = async () => {
     setLoading(true);
@@ -121,7 +123,12 @@ export function Media() {
 
   const copyToClipboard = (url: string) => {
     navigator.clipboard.writeText(`![image](${url})`);
-    alert("Markdown copied to clipboard!");
+    setCopiedUrl(url);
+    setStatusBanner("Markdown copied to clipboard!");
+    setTimeout(() => {
+      setCopiedUrl(null);
+      setStatusBanner(null);
+    }, 2500);
   };
 
   return (
@@ -139,6 +146,13 @@ export function Media() {
           </label>
         </div>
       </div>
+
+      {statusBanner && (
+        <div className="mb-6 p-3 bg-graphite border border-silver/30 text-xs font-mono text-ivory flex items-center justify-between">
+          <span>{statusBanner}</span>
+          <button onClick={() => setStatusBanner(null)} className="text-silver hover:text-ivory ml-4 text-[10px] uppercase tracking-wider">Dismiss</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-silver font-mono text-xs">Loading...</div>

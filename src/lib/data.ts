@@ -101,8 +101,7 @@ export async function getStudioArtifacts(): Promise<FirebaseArtifact[]> {
     results.sort((a, b) => b.updatedAt - a.updatedAt);
     return results;
   } catch (err: any) {
-    console.error("Failed to load studio artifacts", err);
-    alert("Failed to load artifacts: " + err.message);
+    console.error("Failed to load studio artifacts:", err);
     return [];
   }
 }
